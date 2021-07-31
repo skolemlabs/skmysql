@@ -574,7 +574,7 @@ let make_get fmt = Fmt.kstr (fun x -> x) fmt
 let insert' dbd ~into:table fields fmt =
   let columns = Row.keys fields in
   let values = Row.values fields in
-  Fmt.kstrf
+  Fmt.kstr
     (fun s ->
       make_run "insert into %s %a values %a %s" table
         (Pp_internal.csv_simple Fmt.string)
@@ -617,13 +617,13 @@ let insert ?on_duplicate_key_update dbd ~into row =
 
 let replace = `Use_insert_on_duplicate_key_update
 
-let update table fmt = Fmt.kstrf (fun s -> Fmt.strf "update %s %s" table s) fmt
+let update table fmt = Fmt.kstr (fun s -> Fmt.strf "update %s %s" table s) fmt
 
 let delete ~from:table fmt =
-  Fmt.kstrf (fun s -> Fmt.strf "delete from %s %s" table s) fmt
+  Fmt.kstr (fun s -> Fmt.strf "delete from %s %s" table s) fmt
 
 let select columns ~from:table fmt =
-  Fmt.kstrf
+  Fmt.kstr
     (fun s ->
       Fmt.strf "select %a from %s %s"
         Fmt.(list ~sep:comma string)
@@ -1264,7 +1264,7 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let insert'_sql runner dbd t fmt =
     let row = M.to_row t in
-    Fmt.kstrf
+    Fmt.kstr
       (fun s -> insert' dbd ~into:(Table.name M.table) row "%s" s |> runner dbd)
       fmt
 
@@ -1306,13 +1306,13 @@ module Make (M : S) : Db with type t := M.t = struct
   let replace = `Use_insert_on_duplicate_key_update
 
   let update_sql clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s) clauses
+    Fmt.kstr (fun s -> update M.table.name "%s" s) clauses
 
   let update_exn dbd clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s |> run_exn dbd) clauses
+    Fmt.kstr (fun s -> update M.table.name "%s" s |> run_exn dbd) clauses
 
   let update dbd clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s |> run dbd) clauses
+    Fmt.kstr (fun s -> update M.table.name "%s" s |> run dbd) clauses
 
   exception Error of string
 
@@ -1324,10 +1324,10 @@ module Make (M : S) : Db with type t := M.t = struct
   let select_sql_short = Fmt.str "SELECT FROM %s" M.table.Table.name
 
   let select_sql clauses =
-    Fmt.kstrf (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
+    Fmt.kstr (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
 
   let select_exn ?transaction dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let rows =
           select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
@@ -1342,7 +1342,7 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let select ?transaction dbd clauses =
     let ( >>= ) = R.( >>= ) in
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         ( select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
           call_with_optional_transaction ?transaction ~name:select_sql_short
@@ -1356,15 +1356,15 @@ module Make (M : S) : Db with type t := M.t = struct
       clauses
 
   let delete_sql clauses =
-    Fmt.kstrf (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
+    Fmt.kstr (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
 
   let delete_exn dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s -> delete ~from:M.table.Table.name "%s" s |> run_exn dbd)
       clauses
 
   let delete dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s -> delete ~from:M.table.Table.name "%s" s |> run dbd)
       clauses
 end
