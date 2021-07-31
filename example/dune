@@ -1,0 +1,3 @@
+(executables
+ (names ezmysql_example)
+ (libraries ezmysql elastic-apm))

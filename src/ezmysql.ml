@@ -15,6 +15,27 @@ module Time_p = CalendarLib.Printer.Time
 open Rresult
 open Astring
 
+let call_with_optional_transaction
+    ?transaction
+    ~name
+    ~(action : [ `get | `exec ])
+    ~statement
+    (f : unit -> 'a) =
+  let open Elastic_apm.Span in
+  let action =
+    match action with
+    | `get -> "get"
+    | `exec -> "exec"
+  in
+  match transaction with
+  | Some t ->
+    let context =
+      Context.make ~db:(Context.make_db ~statement ~type_:"MySQL" ()) ()
+    in
+    wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
+      ~parent:(`Transaction t) f
+  | None -> f ()
+
 let connect_exn ?(reconnect = true) uri =
   let database =
     (* The database name to use is the path without the '/' prefix *)
@@ -25,8 +46,10 @@ let connect_exn ?(reconnect = true) uri =
         (String.trim
            ~drop:(function
              | '/' -> true
-             | _ -> false)
-           p)
+             | _ -> false
+             )
+           p
+        )
   in
   let options =
     if reconnect then
@@ -68,7 +91,8 @@ module Pp_internal = struct
           Datetime.day_of_month datetime,
           Datetime.hour datetime,
           Datetime.minute datetime,
-          Datetime.second datetime )
+          Datetime.second datetime
+        )
     in
     Fmt.of_to_string to_string
 
@@ -77,7 +101,8 @@ module Pp_internal = struct
       Mysql.ml2date
         ( Date.year date,
           Date.month date |> Date.int_of_month,
-          Date.day_of_month date )
+          Date.day_of_month date
+        )
     in
     Fmt.of_to_string to_string
 
@@ -202,7 +227,8 @@ module Column = struct
           if x then
             1
           else
-            0)
+            0
+          )
         ~deserialize:(fun x -> x <> 0)
   end
 
@@ -541,9 +567,9 @@ let get_column spec row =
   | Ok None -> raise Not_found
   | Ok (Some v) -> v
 
-let make_run fmt = Fmt.kstrf (fun x -> x) fmt
+let make_run fmt = Fmt.kstr (fun x -> x) fmt
 
-let make_get fmt = Fmt.kstrf (fun x -> x) fmt
+let make_get fmt = Fmt.kstr (fun x -> x) fmt
 
 let insert' dbd ~into:table fields fmt =
   let columns = Row.keys fields in
@@ -554,7 +580,8 @@ let insert' dbd ~into:table fields fmt =
         (Pp_internal.csv_simple Fmt.string)
         columns
         (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
-        values s)
+        values s
+      )
     fmt
 
 let pp_update fmt column = Fmt.pf fmt "%s = values(%s)" column column
@@ -568,9 +595,7 @@ let insert ?on_duplicate_key_update dbd ~into row =
       | `All -> (None, Row.keys row)
       | `Columns columns -> (None, columns)
       | `Except columns ->
-        ( None,
-          List.filter (fun name -> List.mem name columns) (Row.keys row)
-        )
+        (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
       | `With_id (id_column, columns) -> (Some id_column, columns)
     in
     let id_column_sql =
@@ -602,7 +627,8 @@ let select columns ~from:table fmt =
     (fun s ->
       Fmt.strf "select %a from %s %s"
         Fmt.(list ~sep:comma string)
-        columns table s)
+        columns table s
+      )
     fmt
 
 let field_of_mysql_type_exn typ s =
@@ -617,7 +643,9 @@ let parse_row columns row =
   Array.mapi
     (fun i col ->
       ( Mysql.(col.name),
-        Option.map (field_of_mysql_type_exn Mysql.(col.ty)) row.(i) ))
+        Option.map (field_of_mysql_type_exn Mysql.(col.ty)) row.(i)
+      )
+      )
     columns
   |> Array.to_seq
   |> Row.of_seq
@@ -696,7 +724,9 @@ let to_column4 rows (column1, column2, column3, column4) =
       ( get_v column1 row,
         get_v column2 row,
         get_v column3 row,
-        get_v column4 row ))
+        get_v column4 row
+      )
+      )
     rows
 
 let to_column5 rows (column1, column2, column3, column4, column5) =
@@ -706,7 +736,9 @@ let to_column5 rows (column1, column2, column3, column4, column5) =
         get_v column2 row,
         get_v column3 row,
         get_v column4 row,
-        get_v column5 row ))
+        get_v column5 row
+      )
+      )
     rows
 
 let start_transaction_sql = "start transaction"
@@ -881,7 +913,8 @@ module Table = struct
         ok
         && List.exists
              (fun truth_c -> Column.equal_packed_spec test_c truth_c)
-             truth)
+             truth
+        )
       true test
 
   let mem_columns_multiple ~truth ~tests =
@@ -892,10 +925,11 @@ module Table = struct
       (fun ok fk ->
         let local_columns =
           List.map
-            (fun (Key { local; _ }) -> (Pack local : Column.packed_spec))
+            (fun (Key { local; _ }) : Column.packed_spec -> Pack local)
             fk.keys.key_mapping
         in
-        ok && mem_columns ~truth ~test:local_columns)
+        ok && mem_columns ~truth ~test:local_columns
+        )
       true tests
 
   let make_foreign_key ?key_name foreign_table key_mapping ~on_update ~on_delete
@@ -938,7 +972,8 @@ module Table = struct
           (fun (_name, index) ->
             List.map
               (fun index_field -> column_of_index_field index_field)
-              index)
+              index
+            )
           indices
       in
       let unique_keys_columns =
@@ -1025,7 +1060,8 @@ module Table = struct
       let (local, foreign) =
         List.map
           (fun (Key { local; remote }) ->
-            (Column.Pack local, Column.Pack remote))
+            (Column.Pack local, Column.Pack remote)
+            )
           fk.keys.key_mapping
         |> List.split
       in
@@ -1104,7 +1140,8 @@ module Table = struct
               G.add_edge graph table table_dep
             in
             (* Now recurse in and add any dependencies for table_dep *)
-            add_table graph_accumulator table_dep)
+            add_table graph_accumulator table_dep
+            )
           graph table.deps
       )
 
@@ -1159,6 +1196,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert :
+    ?transaction:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1170,6 +1208,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_exn :
+    ?transaction:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1195,12 +1234,16 @@ module type Db = sig
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
+    ?transaction:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
 
   val select_exn :
-    Mysql.dbd -> ('a, Format.formatter, unit, t list) format4 -> 'a
+    ?transaction:Elastic_apm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, t list) format4 ->
+    'a
 
   val delete_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
@@ -1237,6 +1280,8 @@ module Make (M : S) : Db with type t := M.t = struct
       `With_id
         (Column.name_of_spec id_spec, List.map Column.name_of_packed_spec specs)
 
+  let insert_sql_short = Fmt.str "INSERT INTO %s" M.table.Table.name
+
   let insert_sql ?on_duplicate_key_update dbd t =
     let row = M.to_row t in
     let on_duplicate_key_update =
@@ -1246,11 +1291,17 @@ module Make (M : S) : Db with type t := M.t = struct
     in
     insert ?on_duplicate_key_update dbd ~into:M.table.Table.name row
 
-  let insert ?on_duplicate_key_update dbd t =
-    run dbd (insert_sql ?on_duplicate_key_update dbd t)
+  let insert ?transaction ?on_duplicate_key_update dbd t =
+    let sql = insert_sql ?on_duplicate_key_update dbd t in
+    call_with_optional_transaction ?transaction ~name:insert_sql_short
+      ~statement:sql ~action:`exec (fun () -> run dbd sql
+    )
 
-  let insert_exn ?on_duplicate_key_update dbd t =
-    run_exn dbd (insert_sql ?on_duplicate_key_update dbd t)
+  let insert_exn ?transaction ?on_duplicate_key_update dbd t =
+    let sql = insert_sql ?on_duplicate_key_update dbd t in
+    call_with_optional_transaction ?transaction ~name:insert_sql_short
+      ~action:`exec ~statement:sql (fun () -> run_exn dbd sql
+    )
 
   let replace = `Use_insert_on_duplicate_key_update
 
@@ -1270,27 +1321,38 @@ module Make (M : S) : Db with type t := M.t = struct
     | Ok x -> x
     | Error (`Msg msg) -> raise (Error msg)
 
+  let select_sql_short = Fmt.str "SELECT FROM %s" M.table.Table.name
+
   let select_sql clauses =
     Fmt.kstrf (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
 
-  let select_exn dbd clauses =
+  let select_exn ?transaction dbd clauses =
     Fmt.kstrf
       (fun s ->
         let rows =
-          select [ "*" ] ~from:M.table.Table.name "%s" s |> get_exn dbd
+          select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
+          call_with_optional_transaction ?transaction ~name:select_sql_short
+            ~statement:sql ~action:`get (fun () -> get_exn dbd sql
+          )
         in
         try List.rev_map of_row_exn rows |> List.rev with
-        | Error msg -> failwith msg)
+        | Error msg -> failwith msg
+        )
       clauses
 
-  let select dbd clauses =
+  let select ?transaction dbd clauses =
     let ( >>= ) = R.( >>= ) in
     Fmt.kstrf
       (fun s ->
-        select [ "*" ] ~from:M.table.Table.name "%s" s |> get dbd
+        ( select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
+          call_with_optional_transaction ?transaction ~name:select_sql_short
+            ~statement:sql ~action:`get (fun () -> get dbd sql
+          )
+        )
         >>= fun rows ->
         try List.rev_map of_row_exn rows |> List.rev |> R.ok with
-        | Error msg -> R.error_msg msg)
+        | Error msg -> R.error_msg msg
+        )
       clauses
 
   let delete_sql clauses =

@@ -17,6 +17,7 @@ depends: [
   "ocamlgraph"
   "rresult"
   "uri"
+  "elastic-apm"
 ]
 build: [
   ["dune" "build" "-p" name "-j" jobs]
