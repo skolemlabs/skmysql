@@ -584,34 +584,64 @@ let insert' dbd ~into:table fields fmt =
       )
     fmt
 
+let insert_many' dbd ~into:table rows fmt =
+  let fields = List.hd rows in
+  let columns = Row.keys fields in
+  let values = List.map Row.values rows in
+  Fmt.kstr
+    (fun s ->
+      make_run "insert into %s %a values %a %s" table
+        (Pp_internal.csv_simple Fmt.string)
+        columns
+        (Fmt.list ~sep:Fmt.comma
+           (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
+        )
+        values s
+      )
+    fmt
+
 let pp_update fmt column = Fmt.pf fmt "%s = values(%s)" column column
+
+let on_duplicate_key_update' update row =
+  let (id_column, columns) =
+    match update with
+    | `All -> (None, Row.keys row)
+    | `Columns columns -> (None, columns)
+    | `Except columns ->
+      (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
+    | `With_id (id_column, columns) -> (Some id_column, columns)
+  in
+  let id_column_sql =
+    match id_column with
+    | None -> ""
+    | Some column ->
+      let pp_sep =
+        match columns with
+        | [] -> Fmt.nop
+        | _ -> Fmt.comma
+      in
+      (* If a column is specified, make sure last_insert_id identifies that
+         value once/if this insert completes successfully. *)
+      Fmt.strf "%a%s = last_insert_id(%s)" pp_sep () column column
+  in
+  (columns, id_column_sql)
 
 let insert ?on_duplicate_key_update dbd ~into row =
   match on_duplicate_key_update with
   | None -> insert' dbd ~into row ""
   | Some update ->
-    let (id_column, columns) =
-      match update with
-      | `All -> (None, Row.keys row)
-      | `Columns columns -> (None, columns)
-      | `Except columns ->
-        (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
-      | `With_id (id_column, columns) -> (Some id_column, columns)
-    in
-    let id_column_sql =
-      match id_column with
-      | None -> ""
-      | Some column ->
-        let pp_sep =
-          match columns with
-          | [] -> Fmt.nop
-          | _ -> Fmt.comma
-        in
-        (* If a column is specified, make sure last_insert_id identifies that
-           value once/if this insert completes successfully. *)
-        Fmt.strf "%a%s = last_insert_id(%s)" pp_sep () column column
-    in
+    let (columns, id_column_sql) = on_duplicate_key_update' update row in
     insert' dbd ~into row "on duplicate key update %a%s"
+      (Fmt.list ~sep:Fmt.comma pp_update)
+      columns id_column_sql
+
+let insert_many ?on_duplicate_key_update dbd ~into rows =
+  match on_duplicate_key_update with
+  | None -> insert_many' dbd ~into rows ""
+  | Some update ->
+    let row = List.hd rows in
+    let (columns, id_column_sql) = on_duplicate_key_update' update row in
+    insert_many' dbd ~into rows "on duplicate key update %a%s"
       (Fmt.list ~sep:Fmt.comma pp_update)
       columns id_column_sql
 
@@ -676,6 +706,10 @@ let run dbd sql =
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
     R.error_msgf "Ezmysql.run: %a from %s" Fmt.(brackets string) msg sql
+
+let run_list = function
+  | [] -> fun _ _ -> R.error_msg "List must contain at least one row"
+  | _ -> run
 
 let get_exn dbd sql =
   match exec dbd sql with
@@ -1184,6 +1218,15 @@ module type Db = sig
   val insert_exn' :
     Mysql.dbd -> t -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
+  val insert_many' :
+    Mysql.dbd ->
+    t list ->
+    ('a, Format.formatter, unit, (unit, [> R.msg ]) result) format4 ->
+    'a
+
+  val insert_many_exn' :
+    Mysql.dbd -> t list -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
   val insert_sql :
     ?on_duplicate_key_update:
       [ `All
@@ -1217,6 +1260,41 @@ module type Db = sig
       ] ->
     Mysql.dbd ->
     t ->
+    unit
+
+  val insert_many_sql :
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    [ `Run ] sql
+
+  val insert_many :
+    ?transaction:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    (unit, [> `Msg of string ]) result
+
+  val insert_many_exn :
+    ?transaction:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
     unit
 
   val replace : [ `Use_insert_on_duplicate_key_update ]
@@ -1272,6 +1350,18 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let insert_exn' dbd t fmt = insert'_sql run_exn dbd t fmt
 
+  let insert_many'_sql runner dbd rows fmt =
+    let rows = List.map M.to_row rows in
+    Fmt.kstr
+      (fun s ->
+        insert_many' dbd ~into:(Table.name M.table) rows "%s" s |> runner dbd
+        )
+      fmt
+
+  let insert_many' dbd rows fmt = insert_many'_sql (run_list rows) dbd rows fmt
+
+  let insert_many_exn' dbd t fmt = insert_many'_sql run_exn dbd t fmt
+
   let on_duplicate_key_update_to_strings = function
     | `All -> `All
     | `Columns specs -> `Columns (List.map Column.name_of_packed_spec specs)
@@ -1299,6 +1389,28 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let insert_exn ?transaction ?on_duplicate_key_update dbd t =
     let sql = insert_sql ?on_duplicate_key_update dbd t in
+    call_with_optional_transaction ?transaction ~name:insert_sql_short
+      ~action:`exec ~statement:sql (fun () -> run_exn dbd sql
+    )
+
+  let insert_many_sql ?on_duplicate_key_update dbd rows =
+    let rows = List.map M.to_row rows in
+    let on_duplicate_key_update =
+      Option.map on_duplicate_key_update_to_strings on_duplicate_key_update
+    in
+    insert_many ?on_duplicate_key_update dbd ~into:M.table.Table.name rows
+
+  let insert_many ?transaction ?on_duplicate_key_update dbd rows =
+    match rows with
+    | [] -> R.error_msgf "List must contain at least one row"
+    | _ ->
+      let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
+      call_with_optional_transaction ?transaction ~name:insert_sql_short
+        ~action:`exec ~statement:sql (fun () -> run dbd sql
+      )
+
+  let insert_many_exn ?transaction ?on_duplicate_key_update dbd rows =
+    let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
     call_with_optional_transaction ?transaction ~name:insert_sql_short
       ~action:`exec ~statement:sql (fun () -> run_exn dbd sql
     )
