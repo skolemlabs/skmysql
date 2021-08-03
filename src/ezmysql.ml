@@ -16,7 +16,7 @@ open Rresult
 open Astring
 
 let call_with_optional_transaction
-    ?transaction
+    ?apm
     ~name
     ~(action : [ `get | `exec ])
     ~statement
@@ -27,7 +27,7 @@ let call_with_optional_transaction
     | `get -> "get"
     | `exec -> "exec"
   in
-  match transaction with
+  match apm with
   | Some t ->
     let context =
       Context.make ~db:(Context.make_db ~statement ~type_:"MySQL" ()) ()
@@ -1196,7 +1196,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1208,7 +1208,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_exn :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1234,13 +1234,13 @@ module type Db = sig
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
 
   val select_exn :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, t list) format4 ->
     'a
@@ -1291,16 +1291,16 @@ module Make (M : S) : Db with type t := M.t = struct
     in
     insert ?on_duplicate_key_update dbd ~into:M.table.Table.name row
 
-  let insert ?transaction ?on_duplicate_key_update dbd t =
+  let insert ?apm ?on_duplicate_key_update dbd t =
     let sql = insert_sql ?on_duplicate_key_update dbd t in
-    call_with_optional_transaction ?transaction ~name:insert_sql_short
-      ~statement:sql ~action:`exec (fun () -> run dbd sql
+    call_with_optional_transaction ?apm ~name:insert_sql_short ~statement:sql
+      ~action:`exec (fun () -> run dbd sql
     )
 
-  let insert_exn ?transaction ?on_duplicate_key_update dbd t =
+  let insert_exn ?apm ?on_duplicate_key_update dbd t =
     let sql = insert_sql ?on_duplicate_key_update dbd t in
-    call_with_optional_transaction ?transaction ~name:insert_sql_short
-      ~action:`exec ~statement:sql (fun () -> run_exn dbd sql
+    call_with_optional_transaction ?apm ~name:insert_sql_short ~action:`exec
+      ~statement:sql (fun () -> run_exn dbd sql
     )
 
   let replace = `Use_insert_on_duplicate_key_update
@@ -1326,12 +1326,12 @@ module Make (M : S) : Db with type t := M.t = struct
   let select_sql clauses =
     Fmt.kstrf (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
 
-  let select_exn ?transaction dbd clauses =
+  let select_exn ?apm dbd clauses =
     Fmt.kstrf
       (fun s ->
         let rows =
           select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
-          call_with_optional_transaction ?transaction ~name:select_sql_short
+          call_with_optional_transaction ?apm ~name:select_sql_short
             ~statement:sql ~action:`get (fun () -> get_exn dbd sql
           )
         in
@@ -1340,12 +1340,12 @@ module Make (M : S) : Db with type t := M.t = struct
         )
       clauses
 
-  let select ?transaction dbd clauses =
+  let select ?apm dbd clauses =
     let ( >>= ) = R.( >>= ) in
     Fmt.kstrf
       (fun s ->
         ( select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
-          call_with_optional_transaction ?transaction ~name:select_sql_short
+          call_with_optional_transaction ?apm ~name:select_sql_short
             ~statement:sql ~action:`get (fun () -> get dbd sql
           )
         )
