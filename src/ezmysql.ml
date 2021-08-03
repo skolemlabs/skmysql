@@ -1225,11 +1225,16 @@ module type Db = sig
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val update :
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
-  val update_exn : Mysql.dbd -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  val update_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, unit) format4 ->
+    'a
 
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
@@ -1248,11 +1253,16 @@ module type Db = sig
   val delete_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val delete :
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
-  val delete_exn : Mysql.dbd -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  val delete_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, unit) format4 ->
+    'a
 end
 
 module Make (M : S) : Db with type t := M.t = struct
@@ -1305,14 +1315,30 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let replace = `Use_insert_on_duplicate_key_update
 
+  let update_sql_short = Fmt.str "UPDATE %s" M.table.Table.name
+
   let update_sql clauses =
     Fmt.kstrf (fun s -> update M.table.name "%s" s) clauses
 
-  let update_exn dbd clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s |> run_exn dbd) clauses
+  let update_exn ?apm dbd clauses =
+    Fmt.kstrf
+      (fun s ->
+        let sql = update M.table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:update_sql_short
+          ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
+        )
+        )
+      clauses
 
-  let update dbd clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s |> run dbd) clauses
+  let update ?apm dbd clauses =
+    Fmt.kstrf
+      (fun s ->
+        let sql = update M.table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:update_sql_short
+          ~statement:sql ~action:`exec (fun () -> run dbd sql
+        )
+        )
+      clauses
 
   exception Error of string
 
@@ -1355,17 +1381,29 @@ module Make (M : S) : Db with type t := M.t = struct
         )
       clauses
 
+  let delete_sql_short = Fmt.str "DELETE FROM %s" M.table.Table.name
+
   let delete_sql clauses =
     Fmt.kstrf (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
 
-  let delete_exn dbd clauses =
+  let delete_exn ?apm dbd clauses =
     Fmt.kstrf
-      (fun s -> delete ~from:M.table.Table.name "%s" s |> run_exn dbd)
+      (fun s ->
+        let sql = delete ~from:M.table.Table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:delete_sql_short
+          ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
+        )
+        )
       clauses
 
-  let delete dbd clauses =
+  let delete ?apm dbd clauses =
     Fmt.kstrf
-      (fun s -> delete ~from:M.table.Table.name "%s" s |> run dbd)
+      (fun s ->
+        let sql = delete ~from:M.table.Table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:delete_sql_short
+          ~statement:sql ~action:`exec (fun () -> run dbd sql
+        )
+        )
       clauses
 end
 

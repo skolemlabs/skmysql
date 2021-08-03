@@ -680,6 +680,7 @@ module type Db = sig
       without running it. *)
 
   val update :
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
@@ -688,7 +689,11 @@ module type Db = sig
       {b NOTE}: The function is like {!Fmt.strf} in the quotations it takes. You
       can use the {!Pp} module to properly quote arguments. *)
 
-  val update_exn : Mysql.dbd -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  val update_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, unit) format4 ->
+    'a
   (** Like {!update} except it raises in case of failure.
 
       @raise Mysql.Error if the operation fails. *)
@@ -720,13 +725,18 @@ module type Db = sig
       without running it. *)
 
   val delete :
+    ?apm:Elastic_apm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
   (** [delete dbd fmt_string fmt_args] deletes rows from the table associated
       with this module which match the given clauses in [fmt_string]. *)
 
-  val delete_exn : Mysql.dbd -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  val delete_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, unit) format4 ->
+    'a
   (** Like {!delete} except it raises in case of failure.
 
       @raise Mysql.Error if the operation fails. *)
