@@ -46,10 +46,10 @@ let example =
       Elastic_apm.Transaction.make_transaction ~trace ~name:"main"
         ~type_:"function" ()
     in
-    Table.insert ~transaction conn { ezint; ezstr = "ezmysql" } |> Result.get_ok;
+    Table.insert ~apm:transaction conn { ezint; ezstr = "ezmysql" } |> Result.get_ok;
 
     let (_ : Table_def.t list) =
-      Table.select ~transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
+      Table.select ~apm:transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
       |> Result.get_ok
     in
     let (_ : Elastic_apm.Transaction.result) =
