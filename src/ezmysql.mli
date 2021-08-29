@@ -3,6 +3,8 @@ module Date = Datetime.Date
 module Time = Datetime.Time
 module Row : Map.S with type key = string with type 'a t = 'a Map.Make(String).t
 
+module Mysql = Mysql8
+
 val connect :
   ?reconnect:bool -> Uri.t -> (Mysql.dbd, [> `Msg of string ]) result
 (** [connect uri] connects to [uri].

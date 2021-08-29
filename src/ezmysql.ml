@@ -11,6 +11,7 @@ end
 module Datetime_p = CalendarLib.Printer.Precise_Calendar
 module Date_p = CalendarLib.Printer.Date
 module Time_p = CalendarLib.Printer.Time
+module Mysql = Mysql8
 
 open Rresult
 open Astring
