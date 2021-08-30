@@ -53,6 +53,11 @@ let example =
       Table.select ~apm:transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
       |> Result.get_ok
     in
+    let (_ : [ `Msg of string ]) =
+      Ezmysql.get ~apm:transaction conn
+        (Ezmysql.select [ "ezstr" ] ~from:"ezmysql" "where ezs = 'ezmysql'")
+      |> Result.get_error
+    in
     let (_ : Elastic_apm.Transaction.result) =
       Elastic_apm.Transaction.finalize_and_send transaction
     in
