@@ -440,7 +440,11 @@ val run_exn : Mysql.dbd -> [ `Run ] sql -> unit
     @raise Failure if the server returns rows.
     @raise Mysql.Error if there was problem during execution of [sql]. *)
 
-val get : Mysql.dbd -> [ `Get ] sql -> (row list, [> `Msg of string ]) result
+val get :
+  ?apm:Elastic_apm.Transaction.t ->
+  Mysql.dbd ->
+  [ `Get ] sql ->
+  (row list, [> `Msg of string ]) result
 (** [run dbd sql] runs [sql] against the connection [dbd] in order to retrieve
     rows from the database. The results is an iterator over the returned rows,
     compatible with the combinators available in the {!Gen} module.

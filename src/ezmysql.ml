@@ -33,8 +33,8 @@ let call_with_optional_transaction
     let context =
       Context.make ~db:(Context.make_db ~statement ~type_:"MySQL" ()) ()
     in
-    wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
-      ~parent:(`Transaction t) f
+    Elastic_apm.Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action
+      ~context ~parent:(`Transaction t) f
   | None -> f ()
 
 let connect_exn ?(reconnect = true) uri =
@@ -683,8 +683,12 @@ let get_exn dbd sql =
   | None -> Fmt.failwith "Ezmysql.get: empty result from %s" sql
   | Some rows -> rows
 
-let get dbd sql =
-  match get_exn dbd sql with
+let get ?apm dbd sql =
+  let get () = get_exn dbd sql in
+  match
+    call_with_optional_transaction ?apm ~name:"Ezmysql.get" ~action:`get
+      ~statement:sql get
+  with
   | rows -> Ok rows
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
