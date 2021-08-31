@@ -1433,7 +1433,7 @@ module Make (M : S) : Db with type t := M.t = struct
     Fmt.kstr (fun s -> update M.table.name "%s" s) clauses
 
   let update_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = update M.table.name "%s" s in
         call_with_optional_transaction ?apm ~name:update_sql_short
@@ -1443,7 +1443,7 @@ module Make (M : S) : Db with type t := M.t = struct
       clauses
 
   let update ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = update M.table.name "%s" s in
         call_with_optional_transaction ?apm ~name:update_sql_short
@@ -1465,7 +1465,7 @@ module Make (M : S) : Db with type t := M.t = struct
     Fmt.kstr (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
 
   let select_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let rows =
           select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
@@ -1499,7 +1499,7 @@ module Make (M : S) : Db with type t := M.t = struct
     Fmt.kstr (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
 
   let delete_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = delete ~from:M.table.Table.name "%s" s in
         call_with_optional_transaction ?apm ~name:delete_sql_short
@@ -1509,7 +1509,7 @@ module Make (M : S) : Db with type t := M.t = struct
       clauses
 
   let delete ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = delete ~from:M.table.Table.name "%s" s in
         call_with_optional_transaction ?apm ~name:delete_sql_short
