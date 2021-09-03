@@ -725,7 +725,7 @@ module type Db = sig
       @raise Failure "hd" if the list is empty. *)
 
   val insert_many :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -738,7 +738,7 @@ module type Db = sig
   (** Like {!insert_many} except it takes multiple instances of type {!t} *)
 
   val insert_many_exn :
-    ?transaction:Elastic_apm.Transaction.t ->
+    ?apm:Elastic_apm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
