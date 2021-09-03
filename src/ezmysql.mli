@@ -372,6 +372,16 @@ val insert' :
     statement. It is intended for cases which would not be covered by
     {!insert}'s more basic ["on duplicate key update"] support, for example. *)
 
+val insert_many' :
+  Mysql.dbd ->
+  into:string ->
+  row list ->
+  ('a, Format.formatter, unit, [ `Run ] sql) format4 ->
+  'a
+(** Like {!insert'} except it accepts multiple rows.
+
+    @raise Failure "hd" if the list is empty. *)
+
 val insert :
   ?on_duplicate_key_update:
     [ `All
@@ -400,6 +410,23 @@ val insert :
     The difference between [`With_id] and [`Columns] is that the
     [insert_id_column_name] value will be reported by {!Mysql.insert_id} or a
     SQL query against [last_insert_id()]. *)
+
+val insert_many :
+  ?on_duplicate_key_update:
+    [ `All
+    | `Columns of string list
+    | `Except of string list
+    | `With_id of string * string list
+    ] ->
+  Mysql.dbd ->
+  into:string ->
+  row list ->
+  [ `Run ] sql
+(** Like {!insert} except it accepts multiple rows.
+
+    @raise Failure "hd" if the list is empty. This is for a couple of reasons:
+    inserting an empty list is a syntax error in MySQL, and we need the first
+    element of the list to get the conversion. *)
 
 val replace : [ `Use_insert_on_duplicate_key_update ]
   [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]
@@ -630,6 +657,19 @@ module type Db = sig
 
       @raise Mysql.Error if the operation fails. *)
 
+  val insert_many' :
+    Mysql.dbd ->
+    t list ->
+    ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
+    'a
+  (** Like {!insert'} except it will insert multiple instances of type {!t} *)
+
+  val insert_many_exn' :
+    Mysql.dbd -> t list -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  (** Like {!insert_many'} except it raises in case of failure.
+
+      @raise Mysql.Error if the operation fails. *)
+
   val insert_sql :
     ?on_duplicate_key_update:
       [ `All
@@ -677,6 +717,49 @@ module type Db = sig
   (** Like {!insert} except it raises in case of failure.
 
       @raise Mysql.Error if the operation fails. *)
+
+  val insert_many_sql :
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    [ `Run ] sql
+  (** Like {!insert_sql} except it takes multiple instances of type {!t}
+
+      @raise Failure "hd" if the list is empty. *)
+
+  val insert_many :
+    ?apm:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    (unit, [> `Msg of string ]) result
+  (** Like {!insert_many} except it takes multiple instances of type {!t} *)
+
+  val insert_many_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    unit
+  (** Like {!insert_many} except it raises in case of failure.
+
+      @raise Mysql.Error if the operation fails.
+      @raise Failure "hd" if the list is empty. *)
 
   val replace : [ `Use_insert_on_duplicate_key_update ]
     [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]

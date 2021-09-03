@@ -58,6 +58,11 @@ let example =
         (Ezmysql.select [ "ezstr" ] ~from:"ezmysql" "where ezs = 'ezmysql'")
       |> Result.get_error
     in
+
+    Table.insert_many ~apm:transaction ~on_duplicate_key_update:`All conn
+      [ { ezint = 1; ezstr = "str1" }; { ezint = 2; ezstr = "str2" } ]
+    |> Result.get_ok;
+
     let (_ : Elastic_apm.Transaction.result) =
       Elastic_apm.Transaction.finalize_and_send transaction
     in
