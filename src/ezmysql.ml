@@ -21,7 +21,7 @@ let call_with_optional_transaction
     ~(action : [ `get | `exec ])
     ~statement
     (f : unit -> 'a) =
-  let open Elastic_apm.Span in
+  let open Elastic_apm in
   let action =
     match action with
     | `get -> "get"
@@ -30,9 +30,11 @@ let call_with_optional_transaction
   match apm with
   | Some t ->
     let context =
-      Context.make ~db:(Context.make_db ~statement ~type_:"MySQL" ()) ()
+      Span.Context.make
+        ~db:(Span.Context.make_db ~statement ~type_:"MySQL" ())
+        ()
     in
-    wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
+    Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
       ~parent:(`Transaction t) f
   | None -> f ()
 
@@ -574,7 +576,7 @@ let make_get fmt = Fmt.kstr (fun x -> x) fmt
 let insert' dbd ~into:table fields fmt =
   let columns = Row.keys fields in
   let values = Row.values fields in
-  Fmt.kstrf
+  Fmt.kstr
     (fun s ->
       make_run "insert into %s %a values %a %s" table
         (Pp_internal.csv_simple Fmt.string)
@@ -584,46 +586,76 @@ let insert' dbd ~into:table fields fmt =
       )
     fmt
 
+let insert_many' dbd ~into:table rows fmt =
+  let fields = List.hd rows in
+  let columns = Row.keys fields in
+  let values = List.map Row.values rows in
+  Fmt.kstr
+    (fun s ->
+      make_run "insert into %s %a values %a %s" table
+        (Pp_internal.csv_simple Fmt.string)
+        columns
+        (Fmt.list ~sep:Fmt.comma
+           (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
+        )
+        values s
+      )
+    fmt
+
 let pp_update fmt column = Fmt.pf fmt "%s = values(%s)" column column
+
+let on_duplicate_key_update' update row =
+  let (id_column, columns) =
+    match update with
+    | `All -> (None, Row.keys row)
+    | `Columns columns -> (None, columns)
+    | `Except columns ->
+      (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
+    | `With_id (id_column, columns) -> (Some id_column, columns)
+  in
+  let id_column_sql =
+    match id_column with
+    | None -> ""
+    | Some column ->
+      let pp_sep =
+        match columns with
+        | [] -> Fmt.nop
+        | _ -> Fmt.comma
+      in
+      (* If a column is specified, make sure last_insert_id identifies that
+         value once/if this insert completes successfully. *)
+      Fmt.strf "%a%s = last_insert_id(%s)" pp_sep () column column
+  in
+  (columns, id_column_sql)
 
 let insert ?on_duplicate_key_update dbd ~into row =
   match on_duplicate_key_update with
   | None -> insert' dbd ~into row ""
   | Some update ->
-    let (id_column, columns) =
-      match update with
-      | `All -> (None, Row.keys row)
-      | `Columns columns -> (None, columns)
-      | `Except columns ->
-        (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
-      | `With_id (id_column, columns) -> (Some id_column, columns)
-    in
-    let id_column_sql =
-      match id_column with
-      | None -> ""
-      | Some column ->
-        let pp_sep =
-          match columns with
-          | [] -> Fmt.nop
-          | _ -> Fmt.comma
-        in
-        (* If a column is specified, make sure last_insert_id identifies that
-           value once/if this insert completes successfully. *)
-        Fmt.strf "%a%s = last_insert_id(%s)" pp_sep () column column
-    in
+    let (columns, id_column_sql) = on_duplicate_key_update' update row in
     insert' dbd ~into row "on duplicate key update %a%s"
+      (Fmt.list ~sep:Fmt.comma pp_update)
+      columns id_column_sql
+
+let insert_many ?on_duplicate_key_update dbd ~into rows =
+  match on_duplicate_key_update with
+  | None -> insert_many' dbd ~into rows ""
+  | Some update ->
+    let row = List.hd rows in
+    let (columns, id_column_sql) = on_duplicate_key_update' update row in
+    insert_many' dbd ~into rows "on duplicate key update %a%s"
       (Fmt.list ~sep:Fmt.comma pp_update)
       columns id_column_sql
 
 let replace = `Use_insert_on_duplicate_key_update
 
-let update table fmt = Fmt.kstrf (fun s -> Fmt.strf "update %s %s" table s) fmt
+let update table fmt = Fmt.kstr (fun s -> Fmt.strf "update %s %s" table s) fmt
 
 let delete ~from:table fmt =
-  Fmt.kstrf (fun s -> Fmt.strf "delete from %s %s" table s) fmt
+  Fmt.kstr (fun s -> Fmt.strf "delete from %s %s" table s) fmt
 
 let select columns ~from:table fmt =
-  Fmt.kstrf
+  Fmt.kstr
     (fun s ->
       Fmt.strf "select %a from %s %s"
         Fmt.(list ~sep:comma string)
@@ -676,6 +708,10 @@ let run dbd sql =
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
     R.error_msgf "Ezmysql.run: %a from %s" Fmt.(brackets string) msg sql
+
+let run_list = function
+  | [] -> fun _ _ -> R.error_msg "List must contain at least one row"
+  | _ -> run
 
 let get_exn dbd sql =
   match exec dbd sql with
@@ -1184,6 +1220,15 @@ module type Db = sig
   val insert_exn' :
     Mysql.dbd -> t -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
+  val insert_many' :
+    Mysql.dbd ->
+    t list ->
+    ('a, Format.formatter, unit, (unit, [> R.msg ]) result) format4 ->
+    'a
+
+  val insert_many_exn' :
+    Mysql.dbd -> t list -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
   val insert_sql :
     ?on_duplicate_key_update:
       [ `All
@@ -1217,6 +1262,41 @@ module type Db = sig
       ] ->
     Mysql.dbd ->
     t ->
+    unit
+
+  val insert_many_sql :
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    [ `Run ] sql
+
+  val insert_many :
+    ?apm:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    (unit, [> `Msg of string ]) result
+
+  val insert_many_exn :
+    ?apm:Elastic_apm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
     unit
 
   val replace : [ `Use_insert_on_duplicate_key_update ]
@@ -1274,13 +1354,25 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let insert'_sql runner dbd t fmt =
     let row = M.to_row t in
-    Fmt.kstrf
+    Fmt.kstr
       (fun s -> insert' dbd ~into:(Table.name M.table) row "%s" s |> runner dbd)
       fmt
 
   let insert' dbd t fmt = insert'_sql run dbd t fmt
 
   let insert_exn' dbd t fmt = insert'_sql run_exn dbd t fmt
+
+  let insert_many'_sql runner dbd rows fmt =
+    let rows = List.map M.to_row rows in
+    Fmt.kstr
+      (fun s ->
+        insert_many' dbd ~into:(Table.name M.table) rows "%s" s |> runner dbd
+        )
+      fmt
+
+  let insert_many' dbd rows fmt = insert_many'_sql (run_list rows) dbd rows fmt
+
+  let insert_many_exn' dbd t fmt = insert_many'_sql run_exn dbd t fmt
 
   let on_duplicate_key_update_to_strings = function
     | `All -> `All
@@ -1313,15 +1405,37 @@ module Make (M : S) : Db with type t := M.t = struct
       ~statement:sql (fun () -> run_exn dbd sql
     )
 
+  let insert_many_sql ?on_duplicate_key_update dbd rows =
+    let rows = List.map M.to_row rows in
+    let on_duplicate_key_update =
+      Option.map on_duplicate_key_update_to_strings on_duplicate_key_update
+    in
+    insert_many ?on_duplicate_key_update dbd ~into:M.table.Table.name rows
+
+  let insert_many ?apm ?on_duplicate_key_update dbd rows =
+    match rows with
+    | [] -> R.error_msgf "List must contain at least one row"
+    | _ ->
+      let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
+      call_with_optional_transaction ?apm ~name:insert_sql_short ~action:`exec
+        ~statement:sql (fun () -> run dbd sql
+      )
+
+  let insert_many_exn ?apm ?on_duplicate_key_update dbd rows =
+    let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
+    call_with_optional_transaction ?apm ~name:insert_sql_short ~action:`exec
+      ~statement:sql (fun () -> run_exn dbd sql
+    )
+
   let replace = `Use_insert_on_duplicate_key_update
 
   let update_sql_short = Fmt.str "UPDATE %s" M.table.Table.name
 
   let update_sql clauses =
-    Fmt.kstrf (fun s -> update M.table.name "%s" s) clauses
+    Fmt.kstr (fun s -> update M.table.name "%s" s) clauses
 
   let update_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = update M.table.name "%s" s in
         call_with_optional_transaction ?apm ~name:update_sql_short
@@ -1331,7 +1445,7 @@ module Make (M : S) : Db with type t := M.t = struct
       clauses
 
   let update ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = update M.table.name "%s" s in
         call_with_optional_transaction ?apm ~name:update_sql_short
@@ -1350,10 +1464,10 @@ module Make (M : S) : Db with type t := M.t = struct
   let select_sql_short = Fmt.str "SELECT FROM %s" M.table.Table.name
 
   let select_sql clauses =
-    Fmt.kstrf (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
+    Fmt.kstr (fun s -> select [ "*" ] ~from:M.table.Table.name "%s" s) clauses
 
   let select_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let rows =
           select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
@@ -1368,7 +1482,7 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let select ?apm dbd clauses =
     let ( >>= ) = R.( >>= ) in
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         ( select [ "*" ] ~from:M.table.Table.name "%s" s |> fun sql ->
           call_with_optional_transaction ?apm ~name:select_sql_short
@@ -1384,10 +1498,10 @@ module Make (M : S) : Db with type t := M.t = struct
   let delete_sql_short = Fmt.str "DELETE FROM %s" M.table.Table.name
 
   let delete_sql clauses =
-    Fmt.kstrf (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
+    Fmt.kstr (fun s -> delete ~from:M.table.Table.name "%s" s) clauses
 
   let delete_exn ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = delete ~from:M.table.Table.name "%s" s in
         call_with_optional_transaction ?apm ~name:delete_sql_short
@@ -1397,7 +1511,7 @@ module Make (M : S) : Db with type t := M.t = struct
       clauses
 
   let delete ?apm dbd clauses =
-    Fmt.kstrf
+    Fmt.kstr
       (fun s ->
         let sql = delete ~from:M.table.Table.name "%s" s in
         call_with_optional_transaction ?apm ~name:delete_sql_short
