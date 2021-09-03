@@ -30,7 +30,9 @@ let call_with_optional_transaction
   match apm with
   | Some t ->
     let context =
-      Span.Context.make ~db:(Span.Context.make_db ~statement ~type_:"MySQL" ()) ()
+      Span.Context.make
+        ~db:(Span.Context.make_db ~statement ~type_:"MySQL" ())
+        ()
     in
     Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
       ~parent:(`Transaction t) f
@@ -1415,14 +1417,14 @@ module Make (M : S) : Db with type t := M.t = struct
     | [] -> R.error_msgf "List must contain at least one row"
     | _ ->
       let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
-      call_with_optional_transaction ?apm ~name:insert_sql_short
-        ~action:`exec ~statement:sql (fun () -> run dbd sql
+      call_with_optional_transaction ?apm ~name:insert_sql_short ~action:`exec
+        ~statement:sql (fun () -> run dbd sql
       )
 
   let insert_many_exn ?apm ?on_duplicate_key_update dbd rows =
     let sql = insert_many_sql ?on_duplicate_key_update dbd rows in
-    call_with_optional_transaction ?apm ~name:insert_sql_short
-      ~action:`exec ~statement:sql (fun () -> run_exn dbd sql
+    call_with_optional_transaction ?apm ~name:insert_sql_short ~action:`exec
+      ~statement:sql (fun () -> run_exn dbd sql
     )
 
   let replace = `Use_insert_on_duplicate_key_update
