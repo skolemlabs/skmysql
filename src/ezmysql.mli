@@ -422,7 +422,9 @@ val insert_many :
   [ `Run ] sql
 (** Like {!insert} except it accepts multiple rows.
 
-    @raise Failure "hd" if the list is empty. *)
+    @raise Failure "hd" if the list is empty. This is for a couple of reasons:
+    inserting an empty list is a syntax error in MySQL, and we need the first
+    element of the list to get the conversion. *)
 
 val replace : [ `Use_insert_on_duplicate_key_update ]
   [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]
