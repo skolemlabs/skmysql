@@ -3,6 +3,8 @@ module Date = Datetime.Date
 module Time = Datetime.Time
 module Row : Map.S with type key = string with type 'a t = 'a Map.Make(String).t
 
+module Mysql = Mysql8
+
 val connect :
   ?reconnect:bool -> Uri.t -> (Mysql.dbd, [> `Msg of string ]) result
 (** [connect uri] connects to [uri].
@@ -465,7 +467,11 @@ val run_exn : Mysql.dbd -> [ `Run ] sql -> unit
     @raise Failure if the server returns rows.
     @raise Mysql.Error if there was problem during execution of [sql]. *)
 
-val get : Mysql.dbd -> [ `Get ] sql -> (row list, [> `Msg of string ]) result
+val get :
+  ?apm:Elastic_apm.Transaction.t ->
+  Mysql.dbd ->
+  [ `Get ] sql ->
+  (row list, [> `Msg of string ]) result
 (** [run dbd sql] runs [sql] against the connection [dbd] in order to retrieve
     rows from the database. The results is an iterator over the returned rows,
     compatible with the combinators available in the {!Gen} module.

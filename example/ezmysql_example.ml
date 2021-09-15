@@ -46,16 +46,20 @@ let example =
       Elastic_apm.Transaction.make_transaction ~trace ~name:"main"
         ~type_:"function" ()
     in
-    Table.insert ~transaction ~on_duplicate_key_update:`All conn
-      { ezint; ezstr = "ezmysql" }
+    Table.insert ~apm:transaction conn { ezint; ezstr = "ezmysql" }
     |> Result.get_ok;
 
     let (_ : Table_def.t list) =
-      Table.select ~transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
+      Table.select ~apm:transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
       |> Result.get_ok
     in
+    let (_ : [ `Msg of string ]) =
+      Ezmysql.get ~apm:transaction conn
+        (Ezmysql.select [ "ezstr" ] ~from:"ezmysql" "where ezs = 'ezmysql'")
+      |> Result.get_error
+    in
 
-    Table.insert_many ~transaction ~on_duplicate_key_update:`All conn
+    Table.insert_many ~apm:transaction ~on_duplicate_key_update:`All conn
       [ { ezint = 1; ezstr = "str1" }; { ezint = 2; ezstr = "str2" } ]
     |> Result.get_ok;
 

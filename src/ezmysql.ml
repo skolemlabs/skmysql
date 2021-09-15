@@ -11,6 +11,7 @@ end
 module Datetime_p = CalendarLib.Printer.Precise_Calendar
 module Date_p = CalendarLib.Printer.Date
 module Time_p = CalendarLib.Printer.Time
+module Mysql = Mysql8
 
 open Rresult
 open Astring
@@ -718,8 +719,12 @@ let get_exn dbd sql =
   | None -> Fmt.failwith "Ezmysql.get: empty result from %s" sql
   | Some rows -> rows
 
-let get dbd sql =
-  match get_exn dbd sql with
+let get ?apm dbd sql =
+  let get () = get_exn dbd sql in
+  match
+    call_with_optional_transaction ?apm ~name:"Ezmysql.get" ~action:`get
+      ~statement:sql get
+  with
   | rows -> Ok rows
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
