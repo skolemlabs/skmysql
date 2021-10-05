@@ -701,14 +701,14 @@ let exec dbd sql =
 let run_exn dbd sql =
   match exec dbd sql with
   | None -> ()
-  | Some _rows -> Fmt.failwith "Ezmysql.run: unexpected results from %s" sql
+  | Some _rows -> Fmt.failwith "Skmysql.run: unexpected results from %s" sql
 
 let run dbd sql =
   match run_exn dbd sql with
   | () -> Ok ()
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
-    R.error_msgf "Ezmysql.run: %a from %s" Fmt.(brackets string) msg sql
+    R.error_msgf "Skmysql.run: %a from %s" Fmt.(brackets string) msg sql
 
 let run_list = function
   | [] -> fun _ _ -> R.error_msg "List must contain at least one row"
@@ -716,24 +716,24 @@ let run_list = function
 
 let get_exn dbd sql =
   match exec dbd sql with
-  | None -> Fmt.failwith "Ezmysql.get: empty result from %s" sql
+  | None -> Fmt.failwith "Skmysql.get: empty result from %s" sql
   | Some rows -> rows
 
 let get ?apm dbd sql =
   let get () = get_exn dbd sql in
   match
-    call_with_optional_transaction ?apm ~name:"Ezmysql.get" ~action:`get
+    call_with_optional_transaction ?apm ~name:"Skmysql.get" ~action:`get
       ~statement:sql get
   with
   | rows -> Ok rows
   | exception Failure msg -> R.error_msg msg
   | exception Mysql.Error msg ->
-    R.error_msgf "Ezmysql.get: %a from %s" Fmt.(brackets string) msg sql
+    R.error_msgf "Skmysql.get: %a from %s" Fmt.(brackets string) msg sql
 
 let get_v (type o) (column : (o, _) Column.t) (row : row) : o option =
   let name = Column.name column in
   match Row.find_opt name row with
-  | None -> Fmt.invalid_arg "Ezmysql.get_v: No column %s in row" name
+  | None -> Fmt.invalid_arg "Skmysql.get_v: No column %s in row" name
   | Some v ->
     ( match v with
     | None -> None
@@ -742,7 +742,7 @@ let get_v (type o) (column : (o, _) Column.t) (row : row) : o option =
       | Some _ as s -> s
       | None ->
         Fmt.invalid_arg
-          "Ezmysql.get_v: column %s's type does not match what was expected"
+          "Skmysql.get_v: column %s's type does not match what was expected"
           name
       )
     )
@@ -869,9 +869,9 @@ module Prepared = struct
     | Error _ as e -> e
     | Ok None -> Ok ()
     | Ok (Some _rows) ->
-      R.error_msgf "Ezmysql.Prepared.run: unexpected results from %s" ps.sql
+      R.error_msgf "Skmysql.Prepared.run: unexpected results from %s" ps.sql
     | exception Mysql.Error msg ->
-      R.error_msgf "Ezmysql.Prepared.run: %a from %s"
+      R.error_msgf "Skmysql.Prepared.run: %a from %s"
         Fmt.(brackets string)
         msg ps.sql
 
@@ -879,10 +879,10 @@ module Prepared = struct
     match exec ps fields with
     | Error _ as e -> e
     | Ok None ->
-      R.error_msgf "Ezmysql.Prepared.get: empty result from %s" ps.sql
+      R.error_msgf "Skmysql.Prepared.get: empty result from %s" ps.sql
     | Ok (Some rows) -> rows
     | exception Mysql.Error msg ->
-      R.error_msgf "Ezmysql.Prepared.get: %a from %s"
+      R.error_msgf "Skmysql.Prepared.get: %a from %s"
         Fmt.(brackets string)
         msg ps.sql
 
@@ -978,7 +978,7 @@ module Table = struct
     match key_mapping with
     | [] ->
       invalid_arg
-        "Ezmysql.Table.make_foreign_key requires a non-empty list of fields"
+        "Skmysql.Table.make_foreign_key requires a non-empty list of fields"
     | _ ->
       let everything_ok =
         let remote_columns =
@@ -989,7 +989,7 @@ module Table = struct
       if not everything_ok then
         invalid_arg
         @@ Fmt.strf
-             "Ezmysql.Table.make_foreign_key refers to columns absent from %s"
+             "Skmysql.Table.make_foreign_key refers to columns absent from %s"
              foreign_table.name;
       { key_name; keys = { foreign_table; key_mapping }; on_update; on_delete }
 
@@ -1001,9 +1001,9 @@ module Table = struct
       name
       columns =
     if String.is_empty name then
-      invalid_arg "Ezmysql.Table.make requires a non-empty table name";
+      invalid_arg "Skmysql.Table.make requires a non-empty table name";
     ( match columns with
-    | [] -> invalid_arg "Ezmysql.Table.make requires a non-empty column list"
+    | [] -> invalid_arg "Skmysql.Table.make requires a non-empty column list"
     | _ -> ()
     );
     let deps = List.map (fun fk -> fk.keys.foreign_table) foreign_keys in
@@ -1026,7 +1026,7 @@ module Table = struct
       && mem_columns_fk ~truth:columns ~tests:foreign_keys
     in
     if not everything_ok then
-      invalid_arg "Ezmysql.Table.make: key or index refers to absent column";
+      invalid_arg "Skmysql.Table.make: key or index refers to absent column";
     { name; columns; primary_key; indices; unique_keys; foreign_keys; deps }
 
   let pp_column_type fmt (Column.Pack c) =

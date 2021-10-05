@@ -1,3 +1,3 @@
 (library
- (public_name ezmysql)
+ (public_name skmysql)
  (libraries astring calendar fmt mysql8 ocamlgraph rresult uri elastic-apm))

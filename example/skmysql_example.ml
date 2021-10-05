@@ -11,56 +11,56 @@ end
 
 let () = Printexc.record_backtrace true
 
-let uri = Uri.of_string (Sys.getenv "EZMYSQL_URL")
-let conn = Ezmysql.connect uri |> Result.get_ok
+let uri = Uri.of_string (Sys.getenv "SKMYSQL_URL")
+let conn = Skmysql.connect uri |> Result.get_ok
 
 module Table_def = struct
-  let ezint = Ezmysql.Column.make_int "ezint" Ezmysql.Column.Conv.identity
-  let ezstr =
-    Ezmysql.Column.make_varchar "ezstr" 64 Ezmysql.Column.Conv.identity
+  let skint = Skmysql.Column.make_int "skint" Skmysql.Column.Conv.identity
+  let skstr =
+    Skmysql.Column.make_varchar "skstr" 64 Skmysql.Column.Conv.identity
 
-  let table = Ezmysql.Table.make "ezmysql" [ Pack ezint; Pack ezstr ]
+  let table = Skmysql.Table.make "skmysql" [ Pack skint; Pack skstr ]
 
   type t = {
-    ezint : int;
-    ezstr : string;
+    skint : int;
+    skstr : string;
   }
 
   let to_row (t : t) =
-    Ezmysql.row_of_list
-      [ Ezmysql.pack_column ezint t.ezint; Ezmysql.pack_column ezstr t.ezstr ]
+    Skmysql.row_of_list
+      [ Skmysql.pack_column skint t.skint; Skmysql.pack_column skstr t.skstr ]
 
   let of_row row =
-    let get c = Ezmysql.get_column c row in
-    try Ok { ezint = get ezint; ezstr = get ezstr } with
-    | _ -> R.error_msgf "Invalid %a row" Ezmysql.Pp.table_name table
+    let get c = Skmysql.get_column c row in
+    try Ok { skint = get skint; skstr = get skstr } with
+    | _ -> R.error_msgf "Invalid %a row" Skmysql.Pp.table_name table
 end
 
-module Table = Ezmysql.Make (Table_def)
+module Table = Skmysql.Make (Table_def)
 
 let example =
   ( Lwt.return_unit >|= fun () ->
     let trace = Elastic_apm.Trace.init () in
-    let ezint = Random.bits () in
+    let skint = Random.bits () in
     let (_, transaction) =
       Elastic_apm.Transaction.make_transaction ~trace ~name:"main"
         ~type_:"function" ()
     in
-    Table.insert ~apm:transaction conn { ezint; ezstr = "ezmysql" }
+    Table.insert ~apm:transaction conn { skint; skstr = "skmysql" }
     |> Result.get_ok;
 
     let (_ : Table_def.t list) =
-      Table.select ~apm:transaction conn "where ezint = %a" Ezmysql.Pp.int ezint
+      Table.select ~apm:transaction conn "where skint = %a" Skmysql.Pp.int skint
       |> Result.get_ok
     in
     let (_ : [ `Msg of string ]) =
-      Ezmysql.get ~apm:transaction conn
-        (Ezmysql.select [ "ezstr" ] ~from:"ezmysql" "where ezs = 'ezmysql'")
+      Skmysql.get ~apm:transaction conn
+        (Skmysql.select [ "skstr" ] ~from:"skmysql" "where sks = 'skmysql'")
       |> Result.get_error
     in
 
     Table.insert_many ~apm:transaction ~on_duplicate_key_update:`All conn
-      [ { ezint = 1; ezstr = "str1" }; { ezint = 2; ezstr = "str2" } ]
+      [ { skint = 1; skstr = "str1" }; { skint = 2; skstr = "str2" } ]
     |> Result.get_ok;
 
     let (_ : Elastic_apm.Transaction.result) =
@@ -71,7 +71,7 @@ let example =
   >>= fun () -> Lwt_unix.sleep 10.
 
 let () =
-  let apm_service_name = "ezmysql_example" in
+  let apm_service_name = "skmysql_example" in
   let apm_secret_token = Sys.getenv "APM_SECRET_TOKEN" in
   let apm_url = Sys.getenv "APM_URL" |> Uri.of_string in
   let context =

@@ -1,16 +1,16 @@
 (lang dune 2.8)
-(name ezmysql)
+(name skmysql)
 
 (license Apache-2.0)
-(maintainers "Hezekiah M. Carty <hezekiah.carty@elastic.co>" "Zach Baylin <zach@skolem.tech>")
+(maintainers "Zach Baylin <zach@skolem.tech>")
 (authors "Hezekiah M. Carty <hezekiah.carty@elastic.co>" "Zach Baylin <zach@skolem.tech>")
 
-(source (github skolemlabs/ezmysql))
+(source (github skolemlabs/skmysql))
 
 (generate_opam_files true)
 
 (package
- (name ezmysql)
+ (name skmysql)
  (synopsis "Simple wrapper over ocaml-mysql")
  (depends
   (ocaml (>= 4.08.0))
