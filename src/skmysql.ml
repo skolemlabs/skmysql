@@ -22,7 +22,7 @@ let call_with_optional_transaction
     ~(action : [ `get | `exec ])
     ~statement
     (f : unit -> 'a) =
-  let open Elastic_apm in
+  let open Skapm in
   let action =
     match action with
     | `get -> "get"
@@ -1246,7 +1246,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1258,7 +1258,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1281,7 +1281,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert_many :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1293,7 +1293,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_many_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1310,13 +1310,13 @@ module type Db = sig
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val update :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val update_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
@@ -1324,13 +1324,13 @@ module type Db = sig
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
 
   val select_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, t list) format4 ->
     'a
@@ -1338,13 +1338,13 @@ module type Db = sig
   val delete_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val delete :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val delete_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
