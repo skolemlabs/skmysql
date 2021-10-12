@@ -22,7 +22,7 @@ let call_with_optional_transaction
     ~(action : [ `get | `exec ])
     ~statement
     (f : unit -> 'a) =
-  let open Elastic_apm in
+  let open Skapm in
   let action =
     match action with
     | `get -> "get"
@@ -253,9 +253,9 @@ module Column = struct
 
   let spec_to_sql_type (type o s) (spec : (o, s) spec) =
     match spec with
-    | Char ({ width; _ }, _) -> Fmt.strf "char(%d)" width
-    | Varchar ({ width; _ }, _) -> Fmt.strf "varchar(%d)" width
-    | Binary ({ width; _ }, _) -> Fmt.strf "binary(%d)" width
+    | Char ({ width; _ }, _) -> Fmt.str "char(%d)" width
+    | Varchar ({ width; _ }, _) -> Fmt.str "varchar(%d)" width
+    | Binary ({ width; _ }, _) -> Fmt.str "binary(%d)" width
     | Blob _ -> "longblob"
     | Tiny_int _ -> "tinyint"
     | Small_int _ -> "smallint"
@@ -487,7 +487,7 @@ module Field = struct
     | Mysql.DecimalTy -> "DecimalTy"
 
   let error_to_string = function
-    | Unhandled_type typ -> Fmt.strf "Unhandled_type %s" (string_of_dbty typ)
+    | Unhandled_type typ -> Fmt.str "Unhandled_type %s" (string_of_dbty typ)
 
   let datetime_of_tuple (y, m, d, hh, mm, ss) = Datetime.make y m d hh mm ss
 
@@ -625,7 +625,7 @@ let on_duplicate_key_update' update row =
       in
       (* If a column is specified, make sure last_insert_id identifies that
          value once/if this insert completes successfully. *)
-      Fmt.strf "%a%s = last_insert_id(%s)" pp_sep () column column
+      Fmt.str "%a%s = last_insert_id(%s)" pp_sep () column column
   in
   (columns, id_column_sql)
 
@@ -650,15 +650,15 @@ let insert_many ?on_duplicate_key_update dbd ~into rows =
 
 let replace = `Use_insert_on_duplicate_key_update
 
-let update table fmt = Fmt.kstr (fun s -> Fmt.strf "update %s %s" table s) fmt
+let update table fmt = Fmt.kstr (fun s -> Fmt.str "update %s %s" table s) fmt
 
 let delete ~from:table fmt =
-  Fmt.kstr (fun s -> Fmt.strf "delete from %s %s" table s) fmt
+  Fmt.kstr (fun s -> Fmt.str "delete from %s %s" table s) fmt
 
 let select columns ~from:table fmt =
   Fmt.kstr
     (fun s ->
-      Fmt.strf "select %a from %s %s"
+      Fmt.str "select %a from %s %s"
         Fmt.(list ~sep:comma string)
         columns table s
       )
@@ -988,7 +988,7 @@ module Table = struct
       in
       if not everything_ok then
         invalid_arg
-        @@ Fmt.strf
+        @@ Fmt.str
              "Skmysql.Table.make_foreign_key refers to columns absent from %s"
              foreign_table.name;
       { key_name; keys = { foreign_table; key_mapping }; on_update; on_delete }
@@ -1246,7 +1246,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1258,7 +1258,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1281,7 +1281,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert_many :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1293,7 +1293,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_many_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1310,13 +1310,13 @@ module type Db = sig
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val update :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val update_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
@@ -1324,13 +1324,13 @@ module type Db = sig
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
 
   val select_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, t list) format4 ->
     'a
@@ -1338,13 +1338,13 @@ module type Db = sig
   val delete_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val delete :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val delete_exn :
-    ?apm:Elastic_apm.Transaction.t ->
+    ?apm:Skapm.Transaction.t ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a

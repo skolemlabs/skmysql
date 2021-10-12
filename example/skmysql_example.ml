@@ -40,10 +40,10 @@ module Table = Skmysql.Make (Table_def)
 
 let example =
   ( Lwt.return_unit >|= fun () ->
-    let trace = Elastic_apm.Trace.init () in
+    let trace = Skapm.Trace.init () in
     let skint = Random.bits () in
     let (_, transaction) =
-      Elastic_apm.Transaction.make_transaction ~trace ~name:"main"
+      Skapm.Transaction.make_transaction ~trace ~name:"main"
         ~type_:"function" ()
     in
     Table.insert ~apm:transaction conn { skint; skstr = "skmysql" }
@@ -63,8 +63,8 @@ let example =
       [ { skint = 1; skstr = "str1" }; { skint = 2; skstr = "str2" } ]
     |> Result.get_ok;
 
-    let (_ : Elastic_apm.Transaction.result) =
-      Elastic_apm.Transaction.finalize_and_send transaction
+    let (_ : Skapm.Transaction.result) =
+      Skapm.Transaction.finalize_and_send transaction
     in
     ()
   )
@@ -75,8 +75,8 @@ let () =
   let apm_secret_token = Sys.getenv "APM_SECRET_TOKEN" in
   let apm_url = Sys.getenv "APM_URL" |> Uri.of_string in
   let context =
-    Elastic_apm.Context.make ~secret_token:apm_secret_token
+    Skapm.Context.make ~secret_token:apm_secret_token
       ~service_name:apm_service_name ~apm_server:apm_url ()
   in
-  Elastic_apm.Apm.init context;
+  Skapm.Apm.init context;
   Lwt_main.run example |> ignore

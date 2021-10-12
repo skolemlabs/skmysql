@@ -22,4 +22,4 @@
   (ocamlgraph (>= 2.0.0))
   (rresult (>= 0.6.0))
   (uri (>= 4.2.0))
-  (elastic-apm :build)))
+  (skapm :build)))
