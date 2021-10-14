@@ -21,5 +21,5 @@
   (mysql8 :build)
   (ocamlgraph (>= 2.0.0))
   (rresult (>= 0.6.0))
-  (uri (>= 4.2.0))
+  (uri (>= 4.1.0))
   (skapm :build)))
