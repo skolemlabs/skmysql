@@ -21,6 +21,7 @@ depends: [
   "uri" {>= "4.1.0"}
   "skapm" {build}
   "odoc" {with-doc}
+  "ocamlformat" {= "0.18.0"}
 ]
 build: [
   ["dune" "subst"] {dev}
@@ -37,3 +38,6 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/skolemlabs/skmysql.git"
+pin-depends: [
+  ["skapm.~dev" "git+https://github.com/skolemlabs/skapm.git"]
+]
