@@ -1129,7 +1129,7 @@ module Table = struct
     Fmt.pf fmt "@[";
     Fmt.pf fmt "@[create@ table@]@ ";
     if ok_if_exists then Fmt.pf fmt "@[if@ not@ exists@]@ ";
-    Fmt.pf fmt "%s" table.name;
+    Fmt.pf fmt "`%s`" table.name;
     Fmt.pf fmt "@;@[<1>(%a" (Fmt.list ~sep:Fmt.comma pp_column) table.columns;
     Fmt.pf fmt "%a" pp_primary_key table.primary_key;
     Fmt.pf fmt "%a" pp_indices table.indices;
