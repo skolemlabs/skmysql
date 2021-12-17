@@ -43,8 +43,8 @@ let example =
     let trace = Skapm.Trace.init () in
     let skint = Random.bits () in
     let (_, transaction) =
-      Skapm.Transaction.make_transaction ~trace ~name:"main"
-        ~type_:"function" ()
+      Skapm.Transaction.make_transaction ~trace ~name:"main" ~type_:"function"
+        ()
     in
     Table.insert ~apm:transaction conn { skint; skstr = "skmysql" }
     |> Result.get_ok;

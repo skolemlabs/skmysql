@@ -1038,7 +1038,7 @@ module Table = struct
   let pp_column_name fmt (Column.Pack c) = Column.pp_spec_name fmt c
 
   let pp_column fmt column =
-    print_endline "calling new formatter";
+    (* Adding backticks to column name so columns can be named mysql key words *)
     Fmt.pf fmt "@[`%a` %a%a@]" pp_column_name column pp_column_type column
       pp_column_spec column
 
@@ -1130,6 +1130,7 @@ module Table = struct
     Fmt.pf fmt "@[";
     Fmt.pf fmt "@[create@ table@]@ ";
     if ok_if_exists then Fmt.pf fmt "@[if@ not@ exists@]@ ";
+    (*Adding back ticks to table name so table name can be mysql key words *)
     Fmt.pf fmt "`%s`" table.name;
     Fmt.pf fmt "@;@[<1>(%a" (Fmt.list ~sep:Fmt.comma pp_column) table.columns;
     Fmt.pf fmt "%a" pp_primary_key table.primary_key;
@@ -1141,7 +1142,6 @@ module Table = struct
   let pp_name fmt table = Fmt.string fmt (name table)
 
   let create_exn dbd table ~ok_if_exists =
-    print_endline "creating a mysql table";
     let sql = make_run "%a" (pp_sql ~ok_if_exists) table in
     run_exn dbd sql
 
