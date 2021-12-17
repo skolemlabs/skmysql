@@ -1038,7 +1038,8 @@ module Table = struct
   let pp_column_name fmt (Column.Pack c) = Column.pp_spec_name fmt c
 
   let pp_column fmt column =
-    Fmt.pf fmt "@[%a %a%a@]" pp_column_name column pp_column_type column
+    print_endline "calling new formatter";
+    Fmt.pf fmt "@[`%a` %a%a@]" pp_column_name column pp_column_type column
       pp_column_spec column
 
   let pp_primary_key fmt pk =
@@ -1140,6 +1141,7 @@ module Table = struct
   let pp_name fmt table = Fmt.string fmt (name table)
 
   let create_exn dbd table ~ok_if_exists =
+    print_endline "creating a mysql table";
     let sql = make_run "%a" (pp_sql ~ok_if_exists) table in
     run_exn dbd sql
 
