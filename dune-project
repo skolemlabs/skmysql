@@ -7,8 +7,6 @@
 
 (source (github skolemlabs/skmysql))
 
-(generate_opam_files true)
-
 (package
  (name skmysql)
  (synopsis "Simple wrapper over ocaml-mysql")
