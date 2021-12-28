@@ -39,5 +39,5 @@ build: [
 dev-repo: "git+https://github.com/skolemlabs/skmysql.git"
 pin-depends: [
   ["skapm.~dev" "git+https://github.com/skolemlabs/skapm.git"]
-  ["mysql8.1.2.5" "git+https://github.com/skolemlabs/mysql8.git#1.2.5"]
+  ["mysql8.1.2.6" "git+https://github.com/skolemlabs/mysql8.git#1.2.6"]
 ]
