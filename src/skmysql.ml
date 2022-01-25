@@ -605,7 +605,7 @@ let insert_many' dbd ~into:table rows fmt =
       )
     fmt
 
-let pp_update fmt column = Fmt.pf fmt "%s = values(%s)" column column
+let pp_update fmt column = Fmt.pf fmt "`%s` = values(`%s`)" column column
 
 let on_duplicate_key_update' update row =
   let (id_column, columns) =
