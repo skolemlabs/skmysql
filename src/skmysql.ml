@@ -115,7 +115,7 @@ module Pp_internal = struct
     in
     Fmt.of_to_string to_string
 
-  let csv_simple pp_elt fmt = Fmt.pf fmt "(%a)" (Fmt.list ~sep:Fmt.comma pp_elt)
+  let csv_simple pp_elt fmt = Fmt.pf fmt "(`%a`)" (Fmt.list ~sep:Fmt.comma pp_elt)
 end
 
 module Column = struct
