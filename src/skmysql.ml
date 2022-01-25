@@ -579,7 +579,7 @@ let insert' dbd ~into:table fields fmt =
   let values = Row.values fields in
   Fmt.kstr
     (fun s ->
-      make_run "insert into `%s` %a values %a `%s`" table
+      make_run "insert into %s %a values %a %s" table
         (Pp_internal.csv_simple Fmt.string)
         columns
         (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
@@ -593,7 +593,7 @@ let insert_many' dbd ~into:table rows fmt =
   let values = List.map Row.values rows in
   Fmt.kstr
     (fun s ->
-      make_run "insert into `%s` %a values %a `%s`" table
+      make_run "insert into %s %a values %a %s" table
         (Pp_internal.csv_simple Fmt.string)
         columns
         (Fmt.list ~sep:Fmt.comma
@@ -1362,7 +1362,7 @@ module Make (M : S) : Db with type t := M.t = struct
   let insert'_sql runner dbd t fmt =
     let row = M.to_row t in
     Fmt.kstr
-      (fun s -> insert' dbd ~into:(Table.name M.table) row "`%s`" s |> runner dbd)
+      (fun s -> insert' dbd ~into:(Table.name M.table) row "%s" s |> runner dbd)
       fmt
 
   let insert' dbd t fmt = insert'_sql run dbd t fmt
