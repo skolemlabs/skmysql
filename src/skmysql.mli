@@ -455,6 +455,10 @@ val select :
     {b NOTE}: The function is like {!Fmt.strf} in the quotations it takes. You
     can use the {!Pp} module to properly quote arguments. *)
 
+val rows_affected : ?apm:Skapm.Transaction.t -> Mysql.dbd -> int64
+(** [rows_affected dbd] returns the number of rows affected by the previous
+    query. Usually used for instrumenting/profiling queries. *)
+
 val run : Mysql.dbd -> [ `Run ] sql -> (unit, [> `Msg of string ]) result
 (** [run dbd sql] runs [sql] against the connection [dbd] strictly for
     side-effects.

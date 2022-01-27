@@ -664,6 +664,14 @@ let select columns ~from:table fmt =
       )
     fmt
 
+let rows_affected ?apm dbd =
+  let f () = Mysql8.affected dbd in
+  match apm with
+  | Some transaction ->
+    Skapm.Util.wrap_call ~name:"#rows_affected" ~type_:"DB" ~subtype:"MySQL"
+      ~action:"rows_affected" ~parent:(`Transaction transaction) f
+  | None -> f ()
+
 let field_of_mysql_type_exn typ s =
   match Field.of_mysql_type typ s with
   | Ok f -> f
