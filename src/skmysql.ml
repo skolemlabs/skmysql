@@ -575,9 +575,9 @@ let make_run fmt = Fmt.kstr (fun x -> x) fmt
 let make_get fmt = Fmt.kstr (fun x -> x) fmt
 
 let insert' dbd ~into:table fields fmt =
-  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in 
+  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in
   let columns = Row.keys fields in
-  let columns = sanitize columns in 
+  let columns = sanitize columns in
   let values = Row.values fields in
   Fmt.kstr
     (fun s ->
@@ -649,8 +649,6 @@ let insert_many ?on_duplicate_key_update dbd ~into rows =
     insert_many' dbd ~into rows "on duplicate key update %a%s"
       (Fmt.list ~sep:Fmt.comma pp_update)
       columns id_column_sql
-
-let replace = `Use_insert_on_duplicate_key_update
 
 let update table fmt = Fmt.kstr (fun s -> Fmt.str "update %s %s" table s) fmt
 
@@ -1281,6 +1279,30 @@ module type Db = sig
     t ->
     unit
 
+  val insert_with_count :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t ->
+    (int64, [> `Msg of string ]) result
+
+  val insert_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t ->
+    int64
+
   val insert_many_sql :
     ?on_duplicate_key_update:
       [ `All
@@ -1316,8 +1338,29 @@ module type Db = sig
     t list ->
     unit
 
-  val replace : [ `Use_insert_on_duplicate_key_update ]
-    [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]
+  val insert_many_with_count :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    (int64, [> `Msg of string ]) result
+
+  val insert_many_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    int64
 
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
@@ -1422,6 +1465,15 @@ module Make (M : S) : Db with type t := M.t = struct
       ~statement:sql (fun () -> run_exn dbd sql
     )
 
+  let insert_with_count ?apm ?on_duplicate_key_update dbd t =
+    let ( >>= ) = Result.bind in
+    insert ?apm ?on_duplicate_key_update dbd t >>= fun () ->
+    Ok (rows_affected dbd)
+
+  let insert_with_count_exn ?apm ?on_duplicate_key_update dbd t =
+    let () = insert_exn ?apm ?on_duplicate_key_update dbd t in
+    rows_affected dbd
+
   let insert_many_sql ?on_duplicate_key_update dbd rows =
     let rows = List.map M.to_row rows in
     let on_duplicate_key_update =
@@ -1444,7 +1496,14 @@ module Make (M : S) : Db with type t := M.t = struct
       ~statement:sql (fun () -> run_exn dbd sql
     )
 
-  let replace = `Use_insert_on_duplicate_key_update
+  let insert_many_with_count ?apm ?on_duplicate_key_update dbd rows =
+    let ( >>= ) = Result.bind in
+    insert_many ?apm ?on_duplicate_key_update dbd rows >>= fun () ->
+    Ok (rows_affected ?apm dbd)
+
+  let insert_many_with_count_exn ?apm ?on_duplicate_key_update dbd rows =
+    let () = insert_many_exn ?apm ?on_duplicate_key_update dbd rows in
+    rows_affected dbd
 
   let update_sql_short = Fmt.str "UPDATE %s" M.table.Table.name
 

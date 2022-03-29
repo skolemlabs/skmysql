@@ -428,9 +428,6 @@ val insert_many :
     inserting an empty list is a syntax error in MySQL, and we need the first
     element of the list to get the conversion. *)
 
-val replace : [ `Use_insert_on_duplicate_key_update ]
-  [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]
-
 val update : string -> ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 (** [update table fmt] creates an update statement against [table].
 
@@ -722,6 +719,32 @@ module type Db = sig
 
       @raise Mysql.Error if the operation fails. *)
 
+  val insert_with_count :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t ->
+    (int64, [> `Msg of string ]) result
+  (** Like {!insert} except it returns the number of rows affected *)
+
+  val insert_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t ->
+    int64
+  (** Like {!insert_exn} except it returns the number of rows affected *)
+
   val insert_many_sql :
     ?on_duplicate_key_update:
       [ `All
@@ -747,7 +770,7 @@ module type Db = sig
     Mysql.dbd ->
     t list ->
     (unit, [> `Msg of string ]) result
-  (** Like {!insert_many} except it takes multiple instances of type {!t} *)
+  (** Like {!insert} except it takes multiple instances of type {!t} *)
 
   val insert_many_exn :
     ?apm:Skapm.Transaction.t ->
@@ -765,8 +788,31 @@ module type Db = sig
       @raise Mysql.Error if the operation fails.
       @raise Failure "hd" if the list is empty. *)
 
-  val replace : [ `Use_insert_on_duplicate_key_update ]
-    [@@ocaml.deprecated "Use 'insert ~on_duplicate_key_update' instead"]
+  val insert_many_with_count :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    (int64, [> `Msg of string ]) result
+  (** Like {!insert_many} except it returns the number of rows affected *)
+
+  val insert_many_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    ?on_duplicate_key_update:
+      [ `All
+      | `Columns of Column.packed_spec list
+      | `Except of Column.packed_spec list
+      | `With_id of (_, _) Column.spec * Column.packed_spec list
+      ] ->
+    Mysql.dbd ->
+    t list ->
+    int64
+  (** Like {!insert_many_exn} except it returns the number of rows affected *)
 
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
   (** Like {!update} but only generates and returns the SQL for the query
