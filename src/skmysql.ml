@@ -1376,6 +1376,18 @@ module type Db = sig
     ('a, Format.formatter, unit, unit) format4 ->
     'a
 
+  val update_with_count :
+    ?apm:Skapm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, (int64, [> `Msg of string ]) result) format4 ->
+    'a
+
+  val update_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, int64) format4 ->
+    'a
+
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
@@ -1509,6 +1521,29 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let update_sql clauses =
     Fmt.kstr (fun s -> update M.table.name "%s" s) clauses
+
+  let update_with_count_exn ?apm dbd clauses =
+    Fmt.kstr
+      (fun s ->
+        let sql = update M.table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:update_sql_short
+          ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
+        );
+        rows_affected ?apm dbd
+        )
+      clauses
+
+  let update_with_count ?apm dbd clauses =
+    let ( >>= ) = Result.bind in
+    Fmt.kstr
+      (fun s ->
+        let sql = update M.table.name "%s" s in
+        call_with_optional_transaction ?apm ~name:update_sql_short
+          ~statement:sql ~action:`exec (fun () -> run dbd sql
+        )
+        >>= fun () -> Ok (rows_affected ?apm dbd)
+        )
+      clauses
 
   let update_exn ?apm dbd clauses =
     Fmt.kstr

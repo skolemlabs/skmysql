@@ -837,6 +837,20 @@ module type Db = sig
 
       @raise Mysql.Error if the operation fails. *)
 
+  val update_with_count :
+    ?apm:Skapm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, (int64, [> `Msg of string ]) result) format4 ->
+    'a
+  (** Like {!update} except it returns the number of rows affected *)
+
+  val update_with_count_exn :
+    ?apm:Skapm.Transaction.t ->
+    Mysql.dbd ->
+    ('a, Format.formatter, unit, int64) format4 ->
+    'a
+  (** Like {!update_exn} except it returns the number of rows affected *)
+
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
   (** Like {!select} but only generates and returns the SQL for the query
       without running it. *)
