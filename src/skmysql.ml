@@ -575,9 +575,9 @@ let make_run fmt = Fmt.kstr (fun x -> x) fmt
 let make_get fmt = Fmt.kstr (fun x -> x) fmt
 
 let insert' dbd ~into:table fields fmt =
-  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in 
+  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in
   let columns = Row.keys fields in
-  let columns = sanitize columns in 
+  let columns = sanitize columns in
   let values = Row.values fields in
   Fmt.kstr
     (fun s ->

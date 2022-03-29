@@ -21,3 +21,17 @@
   (rresult (>= 0.6.0))
   (uri (>= 4.1.0))
   (skapm :build)))
+
+(package
+ (name skmysql_ppx)
+ (synopsis "PPX for making skmysql queries")
+ (depends
+  (ppxlib (>= 0.20.0))
+  (skmysql :build)))
+
+(package
+ (name skmysql_ppx_deriving)
+ (synopsis "PPX for making skmysql tables from types")
+ (depends
+  (ppxlib (>= 0.20.0))
+  (skmysql :build)))
