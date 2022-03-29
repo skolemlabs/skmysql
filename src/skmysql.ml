@@ -575,7 +575,9 @@ let make_run fmt = Fmt.kstr (fun x -> x) fmt
 let make_get fmt = Fmt.kstr (fun x -> x) fmt
 
 let insert' dbd ~into:table fields fmt =
+  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in 
   let columns = Row.keys fields in
+  let columns = sanitize columns in 
   let values = Row.values fields in
   Fmt.kstr
     (fun s ->
@@ -603,7 +605,7 @@ let insert_many' dbd ~into:table rows fmt =
       )
     fmt
 
-let pp_update fmt column = Fmt.pf fmt "%s = values(%s)" column column
+let pp_update fmt column = Fmt.pf fmt "`%s` = values(`%s`)" column column
 
 let on_duplicate_key_update' update row =
   let (id_column, columns) =
