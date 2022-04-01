@@ -1,0 +1,6 @@
+(library
+ (name ppx_deriving_ezmysql)
+ (kind ppx_deriver)
+ (libraries ppxlib skmysql)
+ (preprocess
+  (pps ppxlib.metaquot)))

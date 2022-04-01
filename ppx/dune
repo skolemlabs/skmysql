@@ -1,0 +1,6 @@
+(library
+ (name ezmysql_ppx)
+ (kind ppx_rewriter)
+ (libraries ppxlib skmysql)
+ (preprocess
+  (pps ppxlib.metaquot)))
