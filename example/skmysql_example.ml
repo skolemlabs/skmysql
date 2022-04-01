@@ -46,20 +46,20 @@ let example =
       Skapm.Transaction.make_transaction ~trace ~name:"main" ~type_:"function"
         ()
     in
-    Table.insert ~apm:transaction conn { skint; skstr = "skmysql" }
-    |> Result.get_ok;
+    let apm = `Transaction transaction in
+    Table.insert ~apm conn { skint; skstr = "skmysql" } |> Result.get_ok;
 
     let (_ : Table_def.t list) =
-      Table.select ~apm:transaction conn "where skint = %a" Skmysql.Pp.int skint
+      Table.select ~apm conn "where skint = %a" Skmysql.Pp.int skint
       |> Result.get_ok
     in
     let (_ : [ `Msg of string ]) =
-      Skmysql.get ~apm:transaction conn
+      Skmysql.get ~apm conn
         (Skmysql.select [ "skstr" ] ~from:"skmysql" "where sks = 'skmysql'")
       |> Result.get_error
     in
 
-    Table.insert_many ~apm:transaction ~on_duplicate_key_update:`All conn
+    Table.insert_many ~apm ~on_duplicate_key_update:`All conn
       [ { skint = 1; skstr = "str1" }; { skint = 2; skstr = "str2" } ]
     |> Result.get_ok;
 
