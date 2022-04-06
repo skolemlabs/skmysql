@@ -29,14 +29,13 @@ let call_with_optional_transaction
     | `exec -> "exec"
   in
   match apm with
-  | Some t ->
+  | Some parent ->
     let context =
       Span.Context.make
         ~db:(Span.Context.make_db ~statement ~type_:"MySQL" ())
         ()
     in
-    Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context
-      ~parent:(`Transaction t) f
+    Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context ~parent f
   | None -> f ()
 
 let connect_exn ?(reconnect = true) uri =
@@ -667,9 +666,9 @@ let select columns ~from:table fmt =
 let rows_affected ?apm dbd =
   let f () = Mysql8.affected dbd in
   match apm with
-  | Some transaction ->
+  | Some parent ->
     Skapm.Util.wrap_call ~name:"#rows_affected" ~type_:"DB" ~subtype:"MySQL"
-      ~action:"rows_affected" ~parent:(`Transaction transaction) f
+      ~action:"rows_affected" ~parent f
   | None -> f ()
 
 let field_of_mysql_type_exn typ s =
@@ -1256,7 +1255,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1268,7 +1267,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1280,7 +1279,7 @@ module type Db = sig
     unit
 
   val insert_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1292,7 +1291,7 @@ module type Db = sig
     (int64, [> `Msg of string ]) result
 
   val insert_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1315,7 +1314,7 @@ module type Db = sig
     [ `Run ] sql
 
   val insert_many :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1327,7 +1326,7 @@ module type Db = sig
     (unit, [> `Msg of string ]) result
 
   val insert_many_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1339,7 +1338,7 @@ module type Db = sig
     unit
 
   val insert_many_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1351,7 +1350,7 @@ module type Db = sig
     (int64, [> `Msg of string ]) result
 
   val insert_many_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -1365,25 +1364,25 @@ module type Db = sig
   val update_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val update :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val update_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
 
   val update_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (int64, [> `Msg of string ]) result) format4 ->
     'a
 
   val update_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, int64) format4 ->
     'a
@@ -1391,13 +1390,13 @@ module type Db = sig
   val select_sql : ('a, Format.formatter, unit, [ `Get ] sql) format4 -> 'a
 
   val select :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
 
   val select_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, t list) format4 ->
     'a
@@ -1405,13 +1404,13 @@ module type Db = sig
   val delete_sql : ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 
   val delete :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
 
   val delete_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a

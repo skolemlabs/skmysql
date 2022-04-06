@@ -452,7 +452,7 @@ val select :
     {b NOTE}: The function is like {!Fmt.strf} in the quotations it takes. You
     can use the {!Pp} module to properly quote arguments. *)
 
-val rows_affected : ?apm:Skapm.Transaction.t -> Mysql.dbd -> int64
+val rows_affected : ?apm:Skapm.Span.parent -> Mysql.dbd -> int64
 (** [rows_affected dbd] returns the number of rows affected by the previous
     query. Usually used for instrumenting/profiling queries. *)
 
@@ -469,7 +469,7 @@ val run_exn : Mysql.dbd -> [ `Run ] sql -> unit
     @raise Mysql.Error if there was problem during execution of [sql]. *)
 
 val get :
-  ?apm:Skapm.Transaction.t ->
+  ?apm:Skapm.Span.parent ->
   Mysql.dbd ->
   [ `Get ] sql ->
   (row list, [> `Msg of string ]) result
@@ -690,7 +690,7 @@ module type Db = sig
       the same database! Use with care. *)
 
   val insert :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -705,7 +705,7 @@ module type Db = sig
       [on_duplicate_key_update] parameter. *)
 
   val insert_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -720,7 +720,7 @@ module type Db = sig
       @raise Mysql.Error if the operation fails. *)
 
   val insert_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -733,7 +733,7 @@ module type Db = sig
   (** Like {!insert} except it returns the number of rows affected *)
 
   val insert_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -760,7 +760,7 @@ module type Db = sig
       @raise Failure "hd" if the list is empty. *)
 
   val insert_many :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -773,7 +773,7 @@ module type Db = sig
   (** Like {!insert} except it takes multiple instances of type {!t} *)
 
   val insert_many_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -789,7 +789,7 @@ module type Db = sig
       @raise Failure "hd" if the list is empty. *)
 
   val insert_many_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -802,7 +802,7 @@ module type Db = sig
   (** Like {!insert_many} except it returns the number of rows affected *)
 
   val insert_many_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     ?on_duplicate_key_update:
       [ `All
       | `Columns of Column.packed_spec list
@@ -819,7 +819,7 @@ module type Db = sig
       without running it. *)
 
   val update :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
@@ -829,7 +829,7 @@ module type Db = sig
       can use the {!Pp} module to properly quote arguments. *)
 
   val update_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
@@ -838,14 +838,14 @@ module type Db = sig
       @raise Mysql.Error if the operation fails. *)
 
   val update_with_count :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (int64, [> `Msg of string ]) result) format4 ->
     'a
   (** Like {!update} except it returns the number of rows affected *)
 
   val update_with_count_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, int64) format4 ->
     'a
@@ -856,7 +856,7 @@ module type Db = sig
       without running it. *)
 
   val select :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (t list, [> `Msg of string ]) result) format4 ->
     'a
@@ -864,7 +864,7 @@ module type Db = sig
       with this module which match the given clauses in [fmt_string]. *)
 
   val select_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, t list) format4 ->
     'a
@@ -878,7 +878,7 @@ module type Db = sig
       without running it. *)
 
   val delete :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, (unit, [> `Msg of string ]) result) format4 ->
     'a
@@ -886,7 +886,7 @@ module type Db = sig
       with this module which match the given clauses in [fmt_string]. *)
 
   val delete_exn :
-    ?apm:Skapm.Transaction.t ->
+    ?apm:Skapm.Span.parent ->
     Mysql.dbd ->
     ('a, Format.formatter, unit, unit) format4 ->
     'a
