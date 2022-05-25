@@ -551,9 +551,7 @@ let pack_column_opt spec vo =
 
 let pack_column spec v = pack_column_opt spec (Some v)
 
-let find_column spec (row : row) =
-  let column = Column.of_spec spec in
-  let name = Column.name column in
+let find_column_by_name name row column =
   match Row.find_opt name row with
   | None -> R.error_msgf "no column %s in row" name
   | Some None -> R.ok None
@@ -562,6 +560,11 @@ let find_column spec (row : row) =
     | None -> R.error_msgf "field type mismatch for %s in row" name
     | Some v -> R.ok (Some v)
     )
+
+let find_column spec (row : row) =
+  let column = Column.of_spec spec in
+  let name = Column.name column in
+  find_column_by_name name row column
 
 let get_column spec row =
   match find_column spec row with
@@ -1203,6 +1206,18 @@ module Table = struct
 
   let transitive_sorted_deps tables =
     Topo_sort.init tables |> Topo_sort.sorted_deps
+
+  let find_column (table : t) spec (row : row) =
+    let column = Column.of_spec spec in
+    let name = Column.name column in
+    let specific_name = Printf.sprintf "`%s`.`%s`" table.name name in
+    find_column_by_name specific_name row column
+
+  let get_column (table : t) spec row =
+    match find_column table spec row with
+    | Error (`Msg msg) -> invalid_arg msg
+    | Ok None -> raise Not_found
+    | Ok (Some v) -> v
 end
 
 module type S = sig

@@ -31,7 +31,7 @@ module Table_def = struct
       [ Skmysql.pack_column skint t.skint; Skmysql.pack_column skstr t.skstr ]
 
   let of_row row =
-    let get c = Skmysql.get_column c row in
+    let get c = Skmysql.Table.get_column table c row in
     try Ok { skint = get skint; skstr = get skstr } with
     | _ -> R.error_msgf "Invalid %a row" Skmysql.Pp.table_name table
 end

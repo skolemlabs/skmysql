@@ -201,6 +201,10 @@ module Field : sig
   type packed = Pack : _ t -> packed
 end
 
+type row = Field.packed option Row.t
+(** A row is a map from strings (column names) to fields, where [None] signifies
+    a [NULL] field *)
+
 module Table : sig
   type t
   (** A table definition *)
@@ -302,14 +306,25 @@ module Table : sig
       and [B] depends on table [C] then the sorted deps for [A] would be
       [C; B; A] since [C] must be created first, then [B], then finally [A] in
       order for key constraints to apply properly. *)
+
+  val find_column :
+    t ->
+    ('ocaml, 'sql) Column.spec ->
+    row ->
+    ('ocaml option, [> `Msg of string ]) result
+  (** [find_column t spec row] will find the value matching [spec] in [t.row] if
+      it exists. *)
+
+  val get_column : t -> ('ocaml, 'sql) Column.spec -> row -> 'ocaml
+  (** [get_column t spec row] will find the value matching [spec] in [t.row] if
+      it exists.
+
+      @raise Not_found if the value associated with [spec] is [NULL].
+      @raise Invalid_argument if there is no column matching [spec] in [row]. *)
 end
 
 type 'kind sql = private string constraint 'kind = [< `Run | `Get ]
 (** SQL you can [`Run] for side-effects or [`Get] values from. *)
-
-type row = Field.packed option Row.t
-(** A row is a map from strings (column names) to fields, where [None] signifies
-    a [NULL] field *)
 
 val row_of_list : (string * Field.packed option) list -> row
 (** [row_of_list values] creates a row from the [(column_name, field)] elements
