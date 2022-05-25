@@ -306,21 +306,6 @@ module Table : sig
       and [B] depends on table [C] then the sorted deps for [A] would be
       [C; B; A] since [C] must be created first, then [B], then finally [A] in
       order for key constraints to apply properly. *)
-
-  val find_column :
-    t ->
-    ('ocaml, 'sql) Column.spec ->
-    row ->
-    ('ocaml option, [> `Msg of string ]) result
-  (** [find_column t spec row] will find the value matching [spec] in [t.row] if
-      it exists. *)
-
-  val get_column : t -> ('ocaml, 'sql) Column.spec -> row -> 'ocaml
-  (** [get_column t spec row] will find the value matching [spec] in [t.row] if
-      it exists.
-
-      @raise Not_found if the value associated with [spec] is [NULL].
-      @raise Invalid_argument if there is no column matching [spec] in [row]. *)
 end
 
 type 'kind sql = private string constraint 'kind = [< `Run | `Get ]
@@ -342,15 +327,16 @@ val pack_column_opt :
     [None] then the column will be assigned a [NULL] value. *)
 
 val find_column :
+  ?alias:string ->
   ('ocaml, 'sql) Column.spec ->
   row ->
   ('ocaml option, [> `Msg of string ]) result
-(** [find_column spec row] will find the value matching [spec] in [row] if it
-    exists. *)
+(** [find_column ?alias spec row] will find the value matching [spec] in [row]
+    if it exists, searching for [?alias] instead *)
 
-val get_column : ('ocaml, 'sql) Column.spec -> row -> 'ocaml
-(** [get_column spec row] will find the value matching [spec] in [row] if it
-    exists.
+val get_column : ?alias:string -> ('ocaml, 'sql) Column.spec -> row -> 'ocaml
+(** [get_column ?alias spec row] will find the value matching [spec] in [row] if
+    it exists, searching for [?alias] instead
 
     @raise Not_found if the value associated with [spec] is [NULL].
     @raise Invalid_argument if there is no column matching [spec] in [row]. *)

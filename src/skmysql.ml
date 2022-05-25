@@ -561,13 +561,17 @@ let find_column_by_name name row column =
     | Some v -> R.ok (Some v)
     )
 
-let find_column spec (row : row) =
+let find_column ?(alias : string option) spec (row : row) =
   let column = Column.of_spec spec in
-  let name = Column.name column in
+  let name =
+    match alias with
+    | None -> Column.name column
+    | Some s -> s
+  in
   find_column_by_name name row column
 
-let get_column spec row =
-  match find_column spec row with
+let get_column ?(alias : string option) spec row =
+  match find_column ?alias spec row with
   | Error (`Msg msg) -> invalid_arg msg
   | Ok None -> raise Not_found
   | Ok (Some v) -> v
@@ -1206,18 +1210,6 @@ module Table = struct
 
   let transitive_sorted_deps tables =
     Topo_sort.init tables |> Topo_sort.sorted_deps
-
-  let find_column (table : t) spec (row : row) =
-    let column = Column.of_spec spec in
-    let name = Column.name column in
-    let specific_name = Printf.sprintf "`%s`.`%s`" table.name name in
-    find_column_by_name specific_name row column
-
-  let get_column (table : t) spec row =
-    match find_column table spec row with
-    | Error (`Msg msg) -> invalid_arg msg
-    | Ok None -> raise Not_found
-    | Ok (Some v) -> v
 end
 
 module type S = sig
