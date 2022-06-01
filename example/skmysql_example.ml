@@ -38,6 +38,8 @@ end
 
 module Table = Skmysql.Make (Table_def)
 
+let () = Skmysql.Table.create_exn conn Table.table ~ok_if_exists:true
+
 let example =
   ( Lwt.return_unit >|= fun () ->
     let trace = Skapm.Trace.init () in
@@ -62,6 +64,18 @@ let example =
     Table.insert_many ~apm ~on_duplicate_key_update:`All conn
       [ { skint = 1; skstr = "str1" }; { skint = 2; skstr = "str2" } ]
     |> Result.get_ok;
+
+    let () =
+      let query =
+        Skmysql.make_get
+          "SELECT skmysql.skint AS s_id, skmysql.skstr FROM skmysql"
+      in
+      let rows = Skmysql.get conn query in
+      let rows = Result.get_ok rows in
+      let row = List.hd rows in
+      let (_ : int) = row |> Skmysql.get_column ~alias:"s_id" Table_def.skint in
+      ()
+    in
 
     let (_ : Skapm.Transaction.result) =
       Skapm.Transaction.finalize_and_send transaction

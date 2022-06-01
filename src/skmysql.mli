@@ -201,6 +201,10 @@ module Field : sig
   type packed = Pack : _ t -> packed
 end
 
+type row = Field.packed option Row.t
+(** A row is a map from strings (column names) to fields, where [None] signifies
+    a [NULL] field *)
+
 module Table : sig
   type t
   (** A table definition *)
@@ -307,10 +311,6 @@ end
 type 'kind sql = private string constraint 'kind = [< `Run | `Get ]
 (** SQL you can [`Run] for side-effects or [`Get] values from. *)
 
-type row = Field.packed option Row.t
-(** A row is a map from strings (column names) to fields, where [None] signifies
-    a [NULL] field *)
-
 val row_of_list : (string * Field.packed option) list -> row
 (** [row_of_list values] creates a row from the [(column_name, field)] elements
     in [values]. *)
@@ -327,15 +327,16 @@ val pack_column_opt :
     [None] then the column will be assigned a [NULL] value. *)
 
 val find_column :
+  ?alias:string ->
   ('ocaml, 'sql) Column.spec ->
   row ->
   ('ocaml option, [> `Msg of string ]) result
-(** [find_column spec row] will find the value matching [spec] in [row] if it
-    exists. *)
+(** [find_column ?alias spec row] will find the value matching [spec] in [row]
+    if it exists, searching for [?alias] instead *)
 
-val get_column : ('ocaml, 'sql) Column.spec -> row -> 'ocaml
-(** [get_column spec row] will find the value matching [spec] in [row] if it
-    exists.
+val get_column : ?alias:string -> ('ocaml, 'sql) Column.spec -> row -> 'ocaml
+(** [get_column ?alias spec row] will find the value matching [spec] in [row] if
+    it exists, searching for [?alias] instead
 
     @raise Not_found if the value associated with [spec] is [NULL].
     @raise Invalid_argument if there is no column matching [spec] in [row]. *)
