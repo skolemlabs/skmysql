@@ -13,6 +13,11 @@ module Date_p = CalendarLib.Printer.Date
 module Time_p = CalendarLib.Printer.Time
 module Mysql = Mysql8
 
+let log_src =
+  Logs.Src.create ~doc:"Logger for SQL queries initiated by skmysql" "skmysql"
+
+module SQLog = (val Logs.src_log log_src)
+
 open Rresult
 open Astring
 
@@ -28,6 +33,7 @@ let call_with_optional_transaction
     | `get -> "get"
     | `exec -> "exec"
   in
+  SQLog.debug (fun f -> f "%s: %s" action statement);
   match apm with
   | Some parent ->
     let context =
@@ -39,6 +45,7 @@ let call_with_optional_transaction
   | None -> f ()
 
 let connect_exn ?(reconnect = true) uri =
+  SQLog.debug (fun f -> f "Connecting to database %a" Uri.pp uri);
   let database =
     (* The database name to use is the path without the '/' prefix *)
     match Uri.path uri with

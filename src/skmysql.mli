@@ -5,6 +5,10 @@ module Row : Map.S with type key = string with type 'a t = 'a Map.Make(String).t
 
 module Mysql = Mysql8
 
+val log_src : Logs.Src.t
+(** [log_src] is the log source used for queries. When the level is set to
+    [Debug], queries will be logged as they are sent *)
+
 val connect :
   ?reconnect:bool -> Uri.t -> (Mysql.dbd, [> `Msg of string ]) result
 (** [connect uri] connects to [uri].
