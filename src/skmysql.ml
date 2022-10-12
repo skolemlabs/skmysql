@@ -16,9 +16,7 @@ module Mysql = Mysql8
 let log_src =
   Logs.Src.create ~doc:"Logger for SQL queries initiated by skmysql" "skmysql"
 
-module SQLog = struct
-  include (val Logs.src_log log_src)
-end
+module SQLog = (val Logs.src_log log_src)
 
 open Rresult
 open Astring
