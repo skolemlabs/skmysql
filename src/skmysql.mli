@@ -162,6 +162,9 @@ module Column : sig
   val make_float :
     string -> ?nullable:bool -> ('ocaml, float) Conv.t -> ('ocaml, float) spec
 
+  val make_double :
+    string -> ?nullable:bool -> ('ocaml, float) Conv.t -> ('ocaml, float) spec
+
   val make_datetime :
     string ->
     ?nullable:bool ->

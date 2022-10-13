@@ -180,6 +180,9 @@ module Column = struct
     | Int : spec_int * ('ocaml, (int as 'sql)) conv -> ('ocaml, 'sql) spec
     | Big_int : spec_int * ('ocaml, (int64 as 'sql)) conv -> ('ocaml, 'sql) spec
     | Float : spec_basic * ('ocaml, (float as 'sql)) conv -> ('ocaml, 'sql) spec
+    | Double :
+        spec_basic * ('ocaml, (float as 'sql)) conv
+        -> ('ocaml, 'sql) spec
     | Datetime :
         spec_basic * ('ocaml, (Datetime.t as 'sql)) conv
         -> ('ocaml, 'sql) spec
@@ -205,6 +208,7 @@ module Column = struct
     | (Pack (Big_int (a_spec, _)), Pack (Big_int (b_spec, _))) ->
       a_spec = b_spec
     | (Pack (Float (a_spec, _)), Pack (Float (b_spec, _))) -> a_spec = b_spec
+    | (Pack (Double (a_spec, _)), Pack (Double (b_spec, _))) -> a_spec = b_spec
     | (Pack (Datetime (a_spec, _)), Pack (Datetime (b_spec, _))) ->
       a_spec = b_spec
     | (Pack (Date (a_spec, _)), Pack (Date (b_spec, _))) -> a_spec = b_spec
@@ -219,6 +223,7 @@ module Column = struct
     | (Pack (Int _), _) -> false
     | (Pack (Big_int _), _) -> false
     | (Pack (Float _), _) -> false
+    | (Pack (Double _), _) -> false
     | (Pack (Datetime _), _) -> false
     | (Pack (Date _), _) -> false
     | (Pack (Time _), _) -> false
@@ -253,6 +258,7 @@ module Column = struct
     | Int ({ name; _ }, conv) -> Int (name, conv)
     | Big_int ({ name; _ }, conv) -> Int64 (name, conv)
     | Float ({ name; _ }, conv) -> Float (name, conv)
+    | Double ({ name; _ }, conv) -> Float (name, conv)
     | Datetime ({ name; _ }, conv) -> Datetime (name, conv)
     | Date ({ name; _ }, conv) -> Date (name, conv)
     | Time ({ name; _ }, conv) -> Time (name, conv)
@@ -269,6 +275,7 @@ module Column = struct
     | Int _ -> "int"
     | Big_int _ -> "bigint"
     | Float _ -> "float"
+    | Double _ -> "double"
     | Datetime _ -> "datetime"
     | Date _ -> "date"
     | Time _ -> "time"
@@ -310,6 +317,8 @@ module Column = struct
       make_spec_string ~nullable ~auto_increment
     | Float ({ nullable; _ }, _) ->
       make_spec_string ~nullable ~auto_increment:false
+    | Double ({ nullable; _ }, _) ->
+      make_spec_string ~nullable ~auto_increment:false
     | Datetime ({ nullable; _ }, _) ->
       make_spec_string ~nullable ~auto_increment:false
     | Date ({ nullable; _ }, _) ->
@@ -344,6 +353,9 @@ module Column = struct
     Big_int ({ name; nullable; auto_increment }, conv)
 
   let make_float name ?(nullable = false) conv = Float ({ name; nullable }, conv)
+
+  let make_double name ?(nullable = false) conv =
+    Double ({ name; nullable }, conv)
 
   let make_datetime name ?(nullable = false) conv =
     Datetime ({ name; nullable }, conv)
@@ -418,6 +430,7 @@ module Column = struct
     | Int (s, conv) -> Int ({ (strip_auto_increment s) with name }, conv)
     | Big_int (s, conv) -> Big_int ({ (strip_auto_increment s) with name }, conv)
     | Float (s, conv) -> Float ({ s with name }, conv)
+    | Double (s, conv) -> Double ({ s with name }, conv)
     | Datetime (s, conv) -> Datetime ({ s with name }, conv)
     | Date (s, conv) -> Date ({ s with name }, conv)
     | Time (s, conv) -> Time ({ s with name }, conv)
