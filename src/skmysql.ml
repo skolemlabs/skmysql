@@ -571,6 +571,13 @@ let pack_column_opt spec vo =
 
 let pack_column spec v = pack_column_opt spec (Some v)
 
+let pack_field_opt spec vo =
+  match vo with
+  | None -> None
+  | Some v -> Some (Field.Pack (Field.of_column_spec spec v))
+
+let pack_field spec v = pack_field_opt spec (Some v)
+
 let find_column_by_name name row column =
   match Row.find_opt name row with
   | None -> R.error_msgf "no column %s in row" name
