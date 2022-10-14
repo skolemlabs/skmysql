@@ -333,6 +333,16 @@ val pack_column_opt :
     [spec] and the value in [elt] ready for use in {!row_of_list}. If [elt] is
     [None] then the column will be assigned a [NULL] value. *)
 
+val pack_field_opt :
+  ('ocaml, 'sql) Column.spec -> 'ocaml option -> Field.packed option
+(** [pack_field_opt spec elt] returns [field] matching [spec] and packs value
+    [elt] ready for use in {!Prepared.run}. If elt is [None] then the field will
+    be assigned a [NULL] value *)
+
+val pack_field : ('ocaml, 'sql) Column.spec -> 'ocaml -> Field.packed option
+(** [pack_field spec elt] returns [field] matching [spec] and packs value [elt]
+    ready for use in {!Prepared.run} *)
+
 val find_column :
   ?alias:string ->
   ('ocaml, 'sql) Column.spec ->
