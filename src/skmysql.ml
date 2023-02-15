@@ -92,6 +92,8 @@ module Pp_internal = struct
 
   let float = Fmt.of_to_string Mysql.ml2float
 
+  let set = Fmt.of_to_string Mysql.ml2set
+
   let datetime =
     let to_string datetime =
       Mysql.ml2datetime
@@ -438,13 +440,14 @@ end
 
 module Field = struct
   type _ t =
-    | String : string -> string t
     | Blob : string -> string t
+    | Date : Date.t -> Date.t t
+    | Datetime : Datetime.t -> Datetime.t t
+    | Float : float -> float t
     | Int : int -> int t
     | Int64 : int64 -> int64 t
-    | Float : float -> float t
-    | Datetime : Datetime.t -> Datetime.t t
-    | Date : Date.t -> Date.t t
+    | Set : string list -> string t
+    | String : string -> string t
     | Time : Time.t -> Time.t t
 
   type packed = Pack : _ t -> packed
@@ -453,13 +456,14 @@ module Field = struct
 
   let pp (type v) dbd fmt (field : v t) =
     match field with
-    | String s -> Pp_internal.string dbd fmt s
     | Blob b -> Pp_internal.blob dbd fmt b
+    | Date d -> Pp_internal.date fmt d
+    | Datetime c -> Pp_internal.datetime fmt c
+    | Float f -> Pp_internal.float fmt f
     | Int i -> Pp_internal.int fmt i
     | Int64 i -> Pp_internal.int64 fmt i
-    | Float f -> Pp_internal.float fmt f
-    | Datetime c -> Pp_internal.datetime fmt c
-    | Date d -> Pp_internal.date fmt d
+    | Set s -> Pp_internal.set fmt s
+    | String s -> Pp_internal.string dbd fmt s
     | Time t -> Pp_internal.time fmt t
 
   let pp_opt dbd fmt = function
@@ -475,14 +479,15 @@ module Field = struct
     | Some packed -> pp_packed dbd fmt packed
     | None -> Pp_internal.null fmt ()
 
-  let to_string_unquoted = function
-    | Pack (String s) -> s
+  let to_string_unquoted: packed -> string = function
     | Pack (Blob s) -> s
+    | Pack (Date d) -> Date_p.to_string d
+    | Pack (Datetime c) -> Datetime_p.to_string c
+    | Pack (Float f) -> Mysql.ml2float f
     | Pack (Int i) -> Mysql.ml2int i
     | Pack (Int64 i) -> Mysql.ml642int i
-    | Pack (Float f) -> Mysql.ml2float f
-    | Pack (Datetime c) -> Datetime_p.to_string c
-    | Pack (Date d) -> Date_p.to_string d
+    | Pack (String s) -> s
+    | Pack (Set s) -> String.concat ~sep:", " s
     | Pack (Time t) -> Time_p.to_string t
 
   let opt_to_string_unquoted = function
@@ -514,19 +519,22 @@ module Field = struct
 
   let time_of_tuple (hh, mm, ss) = Time.make hh mm ss
 
-  let of_mysql_type typ s =
+  let of_mysql_type (typ: Mysql.dbty) (s: string): (packed, [> `Mysql_field of error]) result =
     match typ with
-    | Mysql.IntTy -> R.ok @@ Pack (Int (Mysql.int2ml s))
-    | Mysql.Int64Ty -> R.ok @@ Pack (Int64 (Mysql.int642ml s))
-    | Mysql.FloatTy -> R.ok @@ Pack (Float (Mysql.float2ml s))
-    | Mysql.StringTy -> R.ok @@ Pack (String (Mysql.str2ml s))
     | Mysql.BlobTy -> R.ok @@ Pack (Blob (Mysql.blob2ml s))
-    | Mysql.DateTimeTy ->
-      R.ok @@ Pack (Datetime (Mysql.datetime2ml s |> datetime_of_tuple))
+    | Mysql.DateTimeTy -> R.ok @@ Pack (Datetime (Mysql.datetime2ml s |> datetime_of_tuple))
     | Mysql.DateTy -> R.ok @@ Pack (Date (Mysql.date2ml s |> date_of_tuple))
+    | Mysql.FloatTy -> R.ok @@ Pack (Float (Mysql.float2ml s))
+    | Mysql.Int64Ty -> R.ok @@ Pack (Int64 (Mysql.int642ml s))
+    | Mysql.IntTy -> R.ok @@ Pack (Int (Mysql.int2ml s))
+    | Mysql.SetTy ->
+      let (<$>) = List.map in
+      let elements = String.trim <$> Str.split (Str.regexp ",") s in
+      R.ok @@ Pack (Set elements)
+    | Mysql.StringTy -> R.ok @@ Pack (String (Mysql.str2ml s))
     | Mysql.TimeTy -> R.ok @@ Pack (Time (Mysql.time2ml s |> time_of_tuple))
-    | ( Mysql.SetTy | Mysql.EnumTy | Mysql.YearTy | Mysql.TimeStampTy
-      | Mysql.UnknownTy | Mysql.DecimalTy ) as typ ->
+    | (Mysql.DecimalTy | Mysql.EnumTy | Mysql.TimeStampTy |
+       Mysql.UnknownTy | Mysql.YearTy) as typ ->
       R.error (`Mysql_field (Unhandled_type typ))
 
   let of_column_spec (type o s) (spec : (o, s) Column.spec) (v : o) : s t =

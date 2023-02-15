@@ -196,13 +196,14 @@ end
 module Field : sig
   (** Fields (elements of a row) *)
   type _ t =
-    | String : string -> string t
     | Blob : string -> string t
+    | Date : Date.t -> Date.t t
+    | Datetime : Datetime.t -> Datetime.t t
+    | Float : float -> float t
     | Int : int -> int t
     | Int64 : int64 -> int64 t
-    | Float : float -> float t
-    | Datetime : Datetime.t -> Datetime.t t
-    | Date : Date.t -> Date.t t
+    | Set : string list -> string t
+    | String : string -> string t
     | Time : Time.t -> Time.t t
 
   type packed = Pack : _ t -> packed
