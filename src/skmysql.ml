@@ -41,7 +41,7 @@ let call_with_optional_transaction
         ~db:(Span.Context.make_db ~statement ~type_:"MySQL" ())
         ()
     in
-    Util.wrap_call ~name ~type_:"DB" ~subtype:"MySQL" ~action ~context ~parent f
+    Util.wrap_call ~name ~type_:"db" ~subtype:"MySQL" ~action ~context ~parent f
   | None -> f ()
 
 let connect_exn ?(reconnect = true) uri =
@@ -701,7 +701,7 @@ let rows_affected ?apm dbd =
   let f () = Mysql8.affected dbd in
   match apm with
   | Some parent ->
-    Skapm.Util.wrap_call ~name:"#rows_affected" ~type_:"DB" ~subtype:"MySQL"
+    Skapm.Util.wrap_call ~name:"#rows_affected" ~type_:"db" ~subtype:"MySQL"
       ~action:"rows_affected" ~parent f
   | None -> f ()
 
@@ -889,24 +889,34 @@ module Prepared = struct
     in
     loop []
 
-  let exec ps fields =
+  let exec ?apm ps fields =
     let ( >>= ) = R.( >>= ) in
-    let params = prepare_parameters fields in
-    ( match Mysql.Prepared.execute ps.statement params with
-    | x -> Ok x
-    | exception Mysql.Error msg ->
-      R.error_msgf "While executing a prepared statement: %s" msg
-    )
-    >>= fun result ->
-    let columns =
-      Mysql.Prepared.result_metadata ps.statement |> Mysql.fetch_fields
+    let f () =
+      let params = prepare_parameters fields in
+      let res =
+        ( match Mysql.Prepared.execute ps.statement params with
+        | x -> Ok x
+        | exception Mysql.Error msg ->
+          R.error_msgf "While executing a prepared statement: %s" msg
+        )
+        >>= fun result ->
+        let columns =
+          Mysql.Prepared.result_metadata ps.statement |> Mysql.fetch_fields
+        in
+        match columns with
+        | None -> Ok None
+        | Some columns -> Ok (Some (to_rows columns result))
+      in
+      res
     in
-    match columns with
-    | None -> Ok None
-    | Some columns -> Ok (Some (to_rows columns result))
+    match apm with
+    | Some parent ->
+      Skapm.Util.wrap_call ~name:"Skmysql.Prepared.exec" ~type_:"db"
+        ~subtype:"MySQL" ~action:"exec" ~parent f
+    | None -> f ()
 
-  let run ps fields =
-    match exec ps fields with
+  let run ?apm ps fields =
+    match exec ?apm ps fields with
     | Error _ as e -> e
     | Ok None -> Ok ()
     | Ok (Some _rows) ->
@@ -916,8 +926,8 @@ module Prepared = struct
         Fmt.(brackets string)
         msg ps.sql
 
-  let get ps fields =
-    match exec ps fields with
+  let get ?apm ps fields =
+    match exec ?apm ps fields with
     | Error _ as e -> e
     | Ok None ->
       R.error_msgf "Skmysql.Prepared.get: empty result from %s" ps.sql
