@@ -555,7 +555,7 @@ module Field = struct
       | _ -> None
       )
 
-  let pack (field : 'v t): packed = Pack field
+  let pack (field : 'v t): packed option = Some (Pack field)
 end
 
 type 'kind sql = string constraint 'kind = [< `Run | `Get ]
