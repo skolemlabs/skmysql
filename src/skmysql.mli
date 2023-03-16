@@ -602,7 +602,10 @@ module Prepared : sig
       query is run. *)
 
   val run :
-    [ `Run ] t -> Field.packed option list -> (unit, [> `Msg of string ]) result
+    ?apm:Skapm.Span.parent ->
+    [ `Run ] t ->
+    Field.packed option list ->
+    (unit, [> `Msg of string ]) result
   (** [run stmt params] runs [stmt] against the connection [dbd] using [params]
       to fill in the query parameters for [stmt].
 
@@ -610,6 +613,7 @@ module Prepared : sig
       returned. *)
 
   val get :
+    ?apm:Skapm.Span.parent ->
     [ `Get ] t ->
     Field.packed option list ->
     (row list, [> `Msg of string ]) result
