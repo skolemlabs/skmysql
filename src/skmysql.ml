@@ -554,6 +554,8 @@ module Field = struct
       | (Column.Time (_, conv), Time v) -> Some (conv.deserialize v)
       | _ -> None
       )
+
+  let pack (field : 'v t): packed option = Some (Pack field)
 end
 
 type 'kind sql = string constraint 'kind = [< `Run | `Get ]

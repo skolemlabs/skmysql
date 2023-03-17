@@ -206,6 +206,9 @@ module Field : sig
     | Time : Time.t -> Time.t t
 
   type packed = Pack : _ t -> packed
+
+  (** Packs the given field, in a way that makes it easy to use for a prepared statement. *)
+  val pack: 'v t -> packed option
 end
 
 type row = Field.packed option Row.t
