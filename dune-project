@@ -9,6 +9,8 @@
 
 (generate_opam_files true)
 
+(version 1.3.0)
+
 (package
  (name skmysql)
  (synopsis "Simple wrapper over ocaml-mysql")
