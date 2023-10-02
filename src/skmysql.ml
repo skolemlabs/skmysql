@@ -242,7 +242,7 @@ module Column = struct
             1
           else
             0
-          )
+        )
         ~deserialize:(fun x -> x <> 0)
   end
 
@@ -555,7 +555,7 @@ module Field = struct
       | _ -> None
       )
 
-  let pack (field : 'v t): packed option = Some (Pack field)
+  let pack (field : 'v t) : packed option = Some (Pack field)
 end
 
 type 'kind sql = string constraint 'kind = [< `Run | `Get ]
@@ -621,7 +621,7 @@ let insert' dbd ~into:table fields fmt =
         columns
         (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
         values s
-      )
+    )
     fmt
 
 let insert_many' dbd ~into:table rows fmt =
@@ -637,7 +637,7 @@ let insert_many' dbd ~into:table rows fmt =
            (Pp_internal.csv_simple (Field.pp_packed_opt dbd))
         )
         values s
-      )
+    )
     fmt
 
 let pp_update fmt column = Fmt.pf fmt "`%s` = values(`%s`)" column column
@@ -696,7 +696,7 @@ let select columns ~from:table fmt =
       Fmt.str "select %a from %s %s"
         Fmt.(list ~sep:comma string)
         columns table s
-      )
+    )
     fmt
 
 let rows_affected ?apm dbd =
@@ -721,7 +721,7 @@ let parse_row columns row =
       ( Mysql.(col.name),
         Option.map (field_of_mysql_type_exn Mysql.(col.ty)) row.(i)
       )
-      )
+    )
     columns
   |> Array.to_seq
   |> Row.of_seq
@@ -810,7 +810,7 @@ let to_column4 rows (column1, column2, column3, column4) =
         get_v column3 row,
         get_v column4 row
       )
-      )
+    )
     rows
 
 let to_column5 rows (column1, column2, column3, column4, column5) =
@@ -822,7 +822,7 @@ let to_column5 rows (column1, column2, column3, column4, column5) =
         get_v column4 row,
         get_v column5 row
       )
-      )
+    )
     rows
 
 let start_transaction_sql = "start transaction"
@@ -1008,7 +1008,7 @@ module Table = struct
         && List.exists
              (fun truth_c -> Column.equal_packed_spec test_c truth_c)
              truth
-        )
+      )
       true test
 
   let mem_columns_multiple ~truth ~tests =
@@ -1023,7 +1023,7 @@ module Table = struct
             fk.keys.key_mapping
         in
         ok && mem_columns ~truth ~test:local_columns
-        )
+      )
       true tests
 
   let make_foreign_key ?key_name foreign_table key_mapping ~on_update ~on_delete
@@ -1067,7 +1067,7 @@ module Table = struct
             List.map
               (fun index_field -> column_of_index_field index_field)
               index
-            )
+          )
           indices
       in
       let unique_keys_columns =
@@ -1091,7 +1091,8 @@ module Table = struct
   let pp_column_name fmt (Column.Pack c) = Column.pp_spec_name fmt c
 
   let pp_column fmt column =
-    (* Adding backticks to column name so columns can be named mysql key words *)
+    (* Adding backticks to column name so columns can be named mysql key
+       words *)
     Fmt.pf fmt "@[`%a` %a%a@]" pp_column_name column pp_column_type column
       pp_column_spec column
 
@@ -1156,7 +1157,7 @@ module Table = struct
         List.map
           (fun (Key { local; remote }) ->
             (Column.Pack local, Column.Pack remote)
-            )
+          )
           fk.keys.key_mapping
         |> List.split
       in
@@ -1220,7 +1221,8 @@ module Table = struct
     module G = Graph.Persistent.Digraph.Concrete (V)
     module Topo = Graph.Topological.Make_stable (G)
 
-    (* Add a table to an existing graph. [table] must already exist in [graph]. *)
+    (* Add a table to an existing graph. [table] must already exist in
+       [graph]. *)
     let rec add_table graph table =
       if G.mem_vertex graph table then
         graph
@@ -1237,7 +1239,7 @@ module Table = struct
             in
             (* Now recurse in and add any dependencies for table_dep *)
             add_table graph_accumulator table_dep
-            )
+          )
           graph table.deps
       )
 
@@ -1484,7 +1486,7 @@ module Make (M : S) : Db with type t := M.t = struct
     Fmt.kstr
       (fun s ->
         insert_many' dbd ~into:(Table.name M.table) rows "%s" s |> runner dbd
-        )
+      )
       fmt
 
   let insert_many' dbd rows fmt = insert_many'_sql (run_list rows) dbd rows fmt
@@ -1575,7 +1577,7 @@ module Make (M : S) : Db with type t := M.t = struct
           ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
         );
         rows_affected ?apm dbd
-        )
+      )
       clauses
 
   let update_with_count ?apm dbd clauses =
@@ -1587,7 +1589,7 @@ module Make (M : S) : Db with type t := M.t = struct
           ~statement:sql ~action:`exec (fun () -> run dbd sql
         )
         >>= fun () -> Ok (rows_affected ?apm dbd)
-        )
+      )
       clauses
 
   let update_exn ?apm dbd clauses =
@@ -1597,7 +1599,7 @@ module Make (M : S) : Db with type t := M.t = struct
         call_with_optional_transaction ?apm ~name:update_sql_short
           ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
         )
-        )
+      )
       clauses
 
   let update ?apm dbd clauses =
@@ -1607,7 +1609,7 @@ module Make (M : S) : Db with type t := M.t = struct
         call_with_optional_transaction ?apm ~name:update_sql_short
           ~statement:sql ~action:`exec (fun () -> run dbd sql
         )
-        )
+      )
       clauses
 
   exception Error of string
@@ -1633,7 +1635,7 @@ module Make (M : S) : Db with type t := M.t = struct
         in
         try List.rev_map of_row_exn rows |> List.rev with
         | Error msg -> failwith msg
-        )
+      )
       clauses
 
   let select ?apm dbd clauses =
@@ -1648,7 +1650,7 @@ module Make (M : S) : Db with type t := M.t = struct
         >>= fun rows ->
         try List.rev_map of_row_exn rows |> List.rev |> R.ok with
         | Error msg -> R.error_msg msg
-        )
+      )
       clauses
 
   let delete_sql_short = Fmt.str "DELETE FROM %s" M.table.Table.name
@@ -1663,7 +1665,7 @@ module Make (M : S) : Db with type t := M.t = struct
         call_with_optional_transaction ?apm ~name:delete_sql_short
           ~statement:sql ~action:`exec (fun () -> run_exn dbd sql
         )
-        )
+      )
       clauses
 
   let delete ?apm dbd clauses =
@@ -1673,7 +1675,7 @@ module Make (M : S) : Db with type t := M.t = struct
         call_with_optional_transaction ?apm ~name:delete_sql_short
           ~statement:sql ~action:`exec (fun () -> run dbd sql
         )
-        )
+      )
       clauses
 end
 
