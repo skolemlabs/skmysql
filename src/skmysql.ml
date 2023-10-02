@@ -13,6 +13,35 @@ module Date_p = CalendarLib.Printer.Date
 module Time_p = CalendarLib.Printer.Time
 module Mysql = Mysql8
 
+module Utils = struct
+  module List = struct
+    (** These functions are taken from the OCaml 5 stdlib, since there they were
+        made tail recursive. *)
+
+    (** [map f [a1; ...; an]] applies function [f] to [a1, ..., an], and builds
+        the list [[f a1; ...; f an]] with the results returned by [f]. *)
+    let[@tail_mod_cons] rec map f = function
+      | [] -> []
+      | [ a1 ] ->
+        let r1 = f a1 in
+        [ r1 ]
+      | a1 :: a2 :: l ->
+        let r1 = f a1 in
+        let r2 = f a2 in
+        r1 :: r2 :: map f l
+
+    (** [filter f l] returns all the elements of the list [l] that satisfy the
+        predicate [f]. The order of the elements in the input list is preserved. *)
+    let[@tail_mod_cons] rec filter p = function
+      | [] -> []
+      | x :: l ->
+        if p x then
+          x :: filter p l
+        else
+          filter p l
+  end
+end
+
 let log_src =
   Logs.Src.create ~doc:"Logger for SQL queries initiated by skmysql" "skmysql"
 
@@ -610,7 +639,7 @@ let make_run fmt = Fmt.kstr (fun x -> x) fmt
 let make_get fmt = Fmt.kstr (fun x -> x) fmt
 
 let insert' dbd ~into:table fields fmt =
-  let sanitize cols = List.map (fun col -> Fmt.str "`%s`" col) cols in
+  let sanitize cols = Utils.List.map (fun col -> Fmt.str "`%s`" col) cols in
   let columns = Row.keys fields in
   let columns = sanitize columns in
   let values = Row.values fields in
@@ -627,7 +656,7 @@ let insert' dbd ~into:table fields fmt =
 let insert_many' dbd ~into:table rows fmt =
   let fields = List.hd rows in
   let columns = Row.keys fields in
-  let values = List.map Row.values rows in
+  let values = Utils.List.map Row.values rows in
   Fmt.kstr
     (fun s ->
       make_run "insert into %s %a values %a %s" table
@@ -648,7 +677,9 @@ let on_duplicate_key_update' update row =
     | `All -> (None, Row.keys row)
     | `Columns columns -> (None, columns)
     | `Except columns ->
-      (None, List.filter (fun name -> List.mem name columns) (Row.keys row))
+      ( None,
+        Utils.List.filter (fun name -> List.mem name columns) (Row.keys row)
+      )
     | `With_id (id_column, columns) -> (Some id_column, columns)
   in
   let id_column_sql =
@@ -790,20 +821,18 @@ let get_v (type o) (column : (o, _) Column.t) (row : row) : o option =
       )
     )
 
-let list_map f l = List.rev_map f l |> List.rev
-
-let to_column rows column = list_map (fun row -> get_v column row) rows
+let to_column rows column = Utils.List.map (fun row -> get_v column row) rows
 
 let to_column2 rows (column1, column2) =
-  list_map (fun row -> (get_v column1 row, get_v column2 row)) rows
+  Utils.List.map (fun row -> (get_v column1 row, get_v column2 row)) rows
 
 let to_column3 rows (column1, column2, column3) =
-  list_map
+  Utils.List.map
     (fun row -> (get_v column1 row, get_v column2 row, get_v column3 row))
     rows
 
 let to_column4 rows (column1, column2, column3, column4) =
-  list_map
+  Utils.List.map
     (fun row ->
       ( get_v column1 row,
         get_v column2 row,
@@ -814,7 +843,7 @@ let to_column4 rows (column1, column2, column3, column4) =
     rows
 
 let to_column5 rows (column1, column2, column3, column4, column5) =
-  list_map
+  Utils.List.map
     (fun row ->
       ( get_v column1 row,
         get_v column2 row,
@@ -1018,7 +1047,7 @@ module Table = struct
     List.fold_left
       (fun ok fk ->
         let local_columns =
-          List.map
+          Utils.List.map
             (fun (Key { local; _ }) : Column.packed_spec -> Pack local)
             fk.keys.key_mapping
         in
@@ -1035,7 +1064,9 @@ module Table = struct
     | _ ->
       let everything_ok =
         let remote_columns =
-          List.map (fun (Key { remote; _ }) -> Column.Pack remote) key_mapping
+          Utils.List.map
+            (fun (Key { remote; _ }) -> Column.Pack remote)
+            key_mapping
         in
         mem_columns ~truth:foreign_table.columns ~test:remote_columns
       in
@@ -1059,19 +1090,19 @@ module Table = struct
     | [] -> invalid_arg "Skmysql.Table.make requires a non-empty column list"
     | _ -> ()
     );
-    let deps = List.map (fun fk -> fk.keys.foreign_table) foreign_keys in
+    let deps = Utils.List.map (fun fk -> fk.keys.foreign_table) foreign_keys in
     let everything_ok =
       let indices_columns =
-        List.map
+        Utils.List.map
           (fun (_name, index) ->
-            List.map
+            Utils.List.map
               (fun index_field -> column_of_index_field index_field)
               index
           )
           indices
       in
       let unique_keys_columns =
-        List.map (fun (_name, columns) -> columns) unique_keys
+        Utils.List.map (fun (_name, columns) -> columns) unique_keys
       in
       mem_columns ~truth:columns ~test:primary_key
       && mem_columns_multiple ~truth:columns ~tests:indices_columns
@@ -1154,7 +1185,7 @@ module Table = struct
     | [] -> ()
     | _ ->
       let (local, foreign) =
-        List.map
+        Utils.List.map
           (fun (Key { local; remote }) ->
             (Column.Pack local, Column.Pack remote)
           )
@@ -1482,7 +1513,7 @@ module Make (M : S) : Db with type t := M.t = struct
   let insert_exn' dbd t fmt = insert'_sql run_exn dbd t fmt
 
   let insert_many'_sql runner dbd rows fmt =
-    let rows = List.map M.to_row rows in
+    let rows = Utils.List.map M.to_row rows in
     Fmt.kstr
       (fun s ->
         insert_many' dbd ~into:(Table.name M.table) rows "%s" s |> runner dbd
@@ -1495,11 +1526,14 @@ module Make (M : S) : Db with type t := M.t = struct
 
   let on_duplicate_key_update_to_strings = function
     | `All -> `All
-    | `Columns specs -> `Columns (List.map Column.name_of_packed_spec specs)
-    | `Except specs -> `Except (List.map Column.name_of_packed_spec specs)
+    | `Columns specs ->
+      `Columns (Utils.List.map Column.name_of_packed_spec specs)
+    | `Except specs -> `Except (Utils.List.map Column.name_of_packed_spec specs)
     | `With_id (id_spec, specs) ->
       `With_id
-        (Column.name_of_spec id_spec, List.map Column.name_of_packed_spec specs)
+        ( Column.name_of_spec id_spec,
+          Utils.List.map Column.name_of_packed_spec specs
+        )
 
   let insert_sql_short = Fmt.str "INSERT INTO %s" M.table.Table.name
 
@@ -1534,7 +1568,7 @@ module Make (M : S) : Db with type t := M.t = struct
     rows_affected dbd
 
   let insert_many_sql ?on_duplicate_key_update dbd rows =
-    let rows = List.map M.to_row rows in
+    let rows = Utils.List.map M.to_row rows in
     let on_duplicate_key_update =
       Option.map on_duplicate_key_update_to_strings on_duplicate_key_update
     in
@@ -1633,7 +1667,7 @@ module Make (M : S) : Db with type t := M.t = struct
             ~statement:sql ~action:`get (fun () -> get_exn dbd sql
           )
         in
-        try List.rev_map of_row_exn rows |> List.rev with
+        try Utils.List.map of_row_exn rows with
         | Error msg -> failwith msg
       )
       clauses
@@ -1648,7 +1682,7 @@ module Make (M : S) : Db with type t := M.t = struct
           )
         )
         >>= fun rows ->
-        try List.rev_map of_row_exn rows |> List.rev |> R.ok with
+        try Utils.List.map of_row_exn rows |> R.ok with
         | Error msg -> R.error_msg msg
       )
       clauses

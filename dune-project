@@ -17,7 +17,7 @@
  (depends
   mysql8
   skapm
-  (ocaml (>= 4.08.0))
+  (ocaml (>= 4.14.0))
   (astring (>= 0.8.5))
   (calendar (>= 2.04))
   (dune (>= 2.8.0))
