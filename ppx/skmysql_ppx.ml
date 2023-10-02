@@ -99,17 +99,15 @@ module Query = struct
     | String _ :: rest -> to_format_args rest
     | Table_name { txt = table_name; loc } :: rest ->
       [%expr Ezmysql.Pp.table_name]
-      ::
-      expr_of_ident ~loc (Longident.Ldot (table_name, "table"))
+      :: expr_of_ident ~loc (Longident.Ldot (table_name, "table"))
       :: to_format_args rest
     | Column_name { txt = Longident.Ldot (table_name, _) as column_name; loc }
       :: rest ->
       [%expr Ezmysql.Pp.table_name]
-      ::
-      expr_of_ident ~loc (Longident.Ldot (table_name, "table"))
-      ::
-      [%expr Ezmysql.Pp.spec_name]
-      :: expr_of_ident ~loc column_name :: to_format_args rest
+      :: expr_of_ident ~loc (Longident.Ldot (table_name, "table"))
+      :: [%expr Ezmysql.Pp.spec_name]
+      :: expr_of_ident ~loc column_name
+      :: to_format_args rest
     | Column_name { txt; loc } :: _ ->
       let name = Longident.name txt in
       Location.raise_errorf ~loc
@@ -165,7 +163,7 @@ let query_expand ~ctxt expr =
   [%expr
     [%e
       Ast_builder.Default.pexp_apply ~loc fn
-        (other_args @ (Nolabel, format_string_expr) :: format_args)]]
+        (other_args @ ((Nolabel, format_string_expr) :: format_args))]]
 
 let query_extension =
   Extension.V3.declare "ezmysql" Extension.Context.expression

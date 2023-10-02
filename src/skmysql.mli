@@ -13,8 +13,9 @@ val connect :
   ?reconnect:bool -> Uri.t -> (Mysql.dbd, [> `Msg of string ]) result
 (** [connect uri] connects to [uri].
 
-    @param reconnect specifies whether a {!ping} should automatically reconnect
-    if [dbd] has dropped. Defaults to [true]. *)
+    @param reconnect
+      specifies whether a {!ping} should automatically reconnect if [dbd] has
+      dropped. Defaults to [true]. *)
 
 val connect_exn : ?reconnect:bool -> Uri.t -> Mysql.dbd
 (** Like {!connect} but raises {!Mysql.Error} if the connection cannot be made. *)
@@ -207,8 +208,9 @@ module Field : sig
 
   type packed = Pack : _ t -> packed
 
-  (** Packs the given field, in a way that makes it easy to use for a prepared statement. *)
-  val pack: 'v t -> packed option
+  val pack : 'v t -> packed option
+  (** Packs the given field, in a way that makes it easy to use for a prepared
+      statement. *)
 end
 
 type row = Field.packed option Row.t
@@ -256,12 +258,12 @@ module Table : sig
   (** [make_foreign_key ?name foreign_table column_pairs ~on_update ~on_delete]
       creates a foreign key with [on_update] and [on_delete] actions associated.
 
-      @raise Invalid_argument if any of the remote columns listed in
-      [column_pairs] do no exist in [foreign_table] or if [column_pairs] is
-      empty.
+      @raise Invalid_argument
+        if any of the remote columns listed in [column_pairs] do no exist in
+        [foreign_table] or if [column_pairs] is empty.
       @param foreign_table is the external table referenced by the key.
-      @param pairs is a list of [(local, foreign)] column mappings defining the
-      constraint. *)
+      @param pairs
+        is a list of [(local, foreign)] column mappings defining the constraint. *)
 
   val make :
     ?primary_key:Column.packed_spec list ->
@@ -274,8 +276,8 @@ module Table : sig
   (** [make ?primary_key ?indices ?unique_keys ?foreign_keys name columns] makes
       a table definition for a table named [name] with the given [columns].
 
-      @raise Invalid_argument if [columns] isn't a superset of all other listed
-      columns.
+      @raise Invalid_argument
+        if [columns] isn't a superset of all other listed columns.
       @param primary_key defaults to no primary key
       @param indices defaults to no index creation
       @param unique_keys defaults to no unique keys
@@ -389,9 +391,10 @@ val insert' :
     inserting [row] into [table]. If a key in [row] has [None] as its associated
     value then a [NULL] value will be inserted for that column.
 
-    @param extra_clauses can be used to provide suffix clauses for the
-    statement. It is intended for cases which would not be covered by
-    {!insert}'s more basic ["on duplicate key update"] support, for example. *)
+    @param extra_clauses
+      can be used to provide suffix clauses for the statement. It is intended
+      for cases which would not be covered by {!insert}'s more basic
+      ["on duplicate key update"] support, for example. *)
 
 val insert_many' :
   Mysql.dbd ->
@@ -419,18 +422,19 @@ val insert :
     [None] as its associated value then a [NULL] value will be inserted for that
     column.
 
-    @param on_duplicate_key_update will have no effect if it is not specified or
-    explicitly passed in as [?on_duplicate_key_update:None]. [`All] will replace
-    all columns in the existing table's row with the values in [row] if there is
-    a duplicate key found on insert. [`Columns column_names] will only replace
-    the columns listed in [column_names] in the case when a duplicate key is
-    found during insert. [`Except column_names] will replace all columns in the
-    row {b except} those listed in [column_names].
-    [`With_id (insert_id_column_name, other_column_names)] will only replace
-    [other_column_names] in the row when a duplicate key is found during insert.
-    The difference between [`With_id] and [`Columns] is that the
-    [insert_id_column_name] value will be reported by {!Mysql.insert_id} or a
-    SQL query against [last_insert_id()]. *)
+    @param on_duplicate_key_update
+      will have no effect if it is not specified or explicitly passed in as
+      [?on_duplicate_key_update:None]. [`All] will replace all columns in the
+      existing table's row with the values in [row] if there is a duplicate key
+      found on insert. [`Columns column_names] will only replace the columns
+      listed in [column_names] in the case when a duplicate key is found during
+      insert. [`Except column_names] will replace all columns in the row
+      {b except} those listed in [column_names].
+      [`With_id (insert_id_column_name, other_column_names)] will only replace
+      [other_column_names] in the row when a duplicate key is found during
+      insert. The difference between [`With_id] and [`Columns] is that the
+      [insert_id_column_name] value will be reported by {!Mysql.insert_id} or a
+      SQL query against [last_insert_id()]. *)
 
 val insert_many :
   ?on_duplicate_key_update:
@@ -445,9 +449,10 @@ val insert_many :
   [ `Run ] sql
 (** Like {!insert} except it accepts multiple rows.
 
-    @raise Failure "hd" if the list is empty. This is for a couple of reasons:
-    inserting an empty list is a syntax error in MySQL, and we need the first
-    element of the list to get the conversion. *)
+    @raise Failure
+      "hd" if the list is empty. This is for a couple of reasons: inserting an
+      empty list is a syntax error in MySQL, and we need the first element of
+      the list to get the conversion. *)
 
 val update : string -> ('a, Format.formatter, unit, [ `Run ] sql) format4 -> 'a
 (** [update table fmt] creates an update statement against [table].
@@ -498,8 +503,9 @@ val get :
     rows from the database. The results is an iterator over the returned rows,
     compatible with the combinators available in the {!Gen} module.
 
-    @return Error if there is a problem with [dbd] or if no rows are returned.
-    An empty set of rows is OK. *)
+    @return
+      Error if there is a problem with [dbd] or if no rows are returned. An
+      empty set of rows is OK. *)
 
 val get_exn : Mysql.dbd -> [ `Get ] sql -> row list
 (** List {!get} except it raises an exception in the case of failure.
@@ -577,8 +583,8 @@ val with_transaction_exn : Mysql.dbd -> (unit -> 'a) -> 'a
     transaction will be committed. If [f ()] raises an exception the transaction
     will be rolled back then the exception will be re-raised.
 
-    @raise Mysql.Error if there is a database error at any point during the
-    transaction. *)
+    @raise Mysql.Error
+      if there is a database error at any point during the transaction. *)
 
 module Prepared : sig
   type 'a t = {
@@ -612,8 +618,8 @@ module Prepared : sig
   (** [run stmt params] runs [stmt] against the connection [dbd] using [params]
       to fill in the query parameters for [stmt].
 
-      @return Error if there is a problem with [stmt] or if any rows are
-      returned. *)
+      @return
+        Error if there is a problem with [stmt] or if any rows are returned. *)
 
   val get :
     ?apm:Skapm.Span.parent ->
@@ -623,8 +629,8 @@ module Prepared : sig
   (** [get stmt params] runs [stmt] against the connection [dbd] using [params]
       to fill in the query parameters for [stmt].
 
-      @return Error if there is a problem with [stmt] or if no rows are
-      returned. *)
+      @return
+        Error if there is a problem with [stmt] or if no rows are returned. *)
 
   val remake : 'a t -> (unit, [> `Msg of string ]) result
   (** [remake stmt] will ping the database connection associated with [stmt] and

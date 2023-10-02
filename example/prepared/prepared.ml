@@ -21,7 +21,7 @@ module Utils = struct
           | Error _ as e -> e
           | Ok r -> Ok (r :: results)
           )
-        )
+      )
       (Ok []) items
 end
 

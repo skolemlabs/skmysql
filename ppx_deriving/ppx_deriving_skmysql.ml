@@ -219,7 +219,7 @@ let generate_table ~loc tydecl =
           Option.map
             (fun _ -> field.pld_name)
             (Attribute.get Attrs.primary_key field)
-          )
+        )
         fields
     in
     match pkey_column with
@@ -277,7 +277,7 @@ let generate_table ~loc tydecl =
               [%expr Ezmysql.get_column]
           in
           (key, [%expr [%e unpack_function] [%e value] row])
-          )
+        )
         fields
     in
     Ast_builder.Default.(pexp_record ~loc unpacked_rows None)
@@ -311,7 +311,7 @@ let generate_impl ~ctxt:_ (_rec_flag, type_declarations) =
         generate_table ~loc tydecl
       else
         []
-      )
+    )
     type_declarations
 
 let generate_intf ~ctxt:_ (_rec_flag, type_declarations) =
@@ -325,7 +325,7 @@ let generate_intf ~ctxt:_ (_rec_flag, type_declarations) =
         @ generate_table_intf ~loc tydecl
       else
         []
-      )
+    )
     type_declarations
 
 let impl_generator = Deriving.Generator.V2.make_noarg generate_impl
